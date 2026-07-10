@@ -13,7 +13,7 @@
 ไม่ต้องมี bun / npm / node — แค่ download ไฟล์แล้ววาง
 
 1. โหลด ZIP:
-   👉 https://github.com/firstnext/ocean-ochi-skill-cli/archive/refs/tags/v1.1.2.zip
+   👉 https://github.com/l3rowniecakez/Claude_Skill/archive/refs/tags/v1.1.2.zip
    (หรือหน้า repo กดปุ่ม **`Code` ▸ `Download ZIP`**)
 2. แตก ZIP → จะเจอโฟลเดอร์ `skills/` ข้างใน
 3. เปิดโฟลเดอร์ skills ของ Claude:
@@ -28,7 +28,7 @@
 ### 🅱️ เครื่องตัวเอง / มี Bun
 
 ```bash
-bunx --bun ocean-ochi-skill-cli@github:firstnext/ocean-ochi-skill-cli#v1.1.2 install -p lab -y
+bunx --bun ocean-ochi-skill-cli@github:l3rowniecakez/Claude_Skill#v1.1.2 install -p lab -y
 ```
 จบในคำสั่งเดียว แล้ว restart Claude
 
@@ -67,7 +67,7 @@ UI บางเวอร์ชันสแกน `~/.claude/skills/` ไม่�
 ## อัปเดต skill เป็นเวอร์ชันใหม่
 
 ลบของเก่าแล้ววางชุดใหม่ทับ (หรือรันคำสั่ง 🅱️ ด้วย tag ใหม่)
-เวอร์ชันล่าสุดดูได้ที่หน้า [Releases / Tags](https://github.com/firstnext/ocean-ochi-skill-cli/tags)
+เวอร์ชันล่าสุดดูได้ที่หน้า [Releases / Tags](https://github.com/l3rowniecakez/Claude_Skill/tags)
 
 ---
 

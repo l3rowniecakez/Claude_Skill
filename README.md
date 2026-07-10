@@ -17,9 +17,9 @@ CLI สำหรับติดตั้ง **Oracle skills** + **company skills
 
 ```bash
 # วิธี A: git clone (ถ้ามี git)
-git clone https://github.com/firstnext/ocean-ochi-skill-cli.git
+git clone https://github.com/l3rowniecakez/Claude_Skill.git
 mkdir -p ~/.claude/skills
-cp -r ocean-ochi-skill-cli/skills/* ~/.claude/skills/
+cp -r Claude_Skill/skills/* ~/.claude/skills/
 
 # วิธี B: ไม่มี git เลย — โหลด ZIP จากหน้าเว็บ GitHub (ปุ่ม Code ▸ Download ZIP)
 #   แตก ZIP แล้วลากเฉพาะโฟลเดอร์ย่อยใน skills/ ไปไว้ใน ~/.claude/skills/
@@ -39,11 +39,11 @@ Windows path = `C:\Users\<you>\.claude\skills\` (เหมือนกันท�
 
 ```bash
 # วิธีหลัก — รันตรงจาก GitHub (ไม่ต้อง publish npm, ไม่ต้องติดตั้งถาวร)
-bunx --bun ocean-ochi-skill-cli@github:firstnext/ocean-ochi-skill-cli#v1.0.0 install -p lab -y
+bunx --bun ocean-ochi-skill-cli@github:l3rowniecakez/Claude_Skill#v1.0.0 install -p lab -y
 
 # หรือ clone มารันจาก source
-git clone https://github.com/firstnext/ocean-ochi-skill-cli.git
-cd ocean-ochi-skill-cli
+git clone https://github.com/l3rowniecakez/Claude_Skill.git
+cd Claude_Skill
 bun install
 bun run src/cli/index.ts install -p lab -y
 
