@@ -1,0 +1,34 @@
+{
+  "name": "ocean-ochi-skill-cli",
+  "version": "1.0.0",
+  "description": "ocean-ochi skill CLI — install Oracle skills + company tools",
+  "type": "module",
+  "bin": {
+    "ochi": "./src/cli/index.ts"
+  },
+  "files": [
+    "src",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "bun run src/cli/index.ts",
+    "build": "bun build src/cli/index.ts --outdir dist --target bun --minify",
+    "compile": "bun build src/cli/index.ts --compile --outfile ochi"
+  },
+  "keywords": ["ochi", "oracle", "skills", "claude-code", "cli"],
+  "author": "Ochi Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.6",
+    "typescript": "^5.0.0"
+  }
+}
