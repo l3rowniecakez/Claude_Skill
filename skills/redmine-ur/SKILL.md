@@ -158,6 +158,23 @@ Redmine <ticket-number> : <ticket-group title>
    Dedupe by name — list a form/SP/table only once even if touched by multiple dated
    entries below. Only mark "Add"/"Create" if genuinely new, otherwise "Edit"/"Alter".
 
+   **Any form/unit where a `TMSStoredProc`/`TMSQuery`/`TMSAccess`(-family) component was
+   added or altered needs component-level detail, not just the filename** — this applies
+   everywhere, not only Data Modules (`DMOper`, `DMOGL`). A `[ Delphi Form ]` line must say
+   exactly what changed — which component was added/altered and how — not just "Form Edit :
+   <FileName>". Examples:
+   ```
+   [ Delphi Form ]
+      - OGL_Operation.exe
+         - Form Edit : DMOper แก้ไข TMSStoreProc : ZGL_PolicySetting เพิ่ม field PolicyNo, PolicyYear
+         - Form Edit : DMOper เพิ่ม TMSStoreProc : ZGL_DebtCollect
+         - Form Edit : ListOperPolicy แก้ไข TMSQuery : ChkBenefitDate_Cov เพิ่ม field PolicyYear
+   ```
+   Same level of detail applies to any new/changed function, procedure, or field touched in
+   that same unit (e.g. "Form Edit : DMOper เพิ่ม function GenBenefitsTablePDF") — the goal
+   is that someone reading only the top summary block can tell exactly which component(s)
+   were touched, in which unit, without opening the diff.
+
 2. **Append a new dated entry below the existing history** — never delete or rewrite past
    entries. Format: `YYYY-MM-DD - Redmine #NNNN : <title> #ai-work` (or
    `YYYY-MM-DD - (ไม่มี Redmine) <title> #ai-work` if no ticket), followed by the prose/
