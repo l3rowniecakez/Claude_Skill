@@ -89,7 +89,17 @@ minutes to decimal hours before logging (e.g. 20 min → 0.33).
 
 ---
 
-## Step 5 — Post
+## Step 5 — New RM assignment check (if applicable)
+
+If this session's work included a command/instruction to open a **new** Redmine issue
+(RM), that new issue must be assigned to yourself only — never leave `assigned_to`
+blank. Before posting, confirm the assignee is set (Redmine user id/login for the
+current user) in the create payload; if the new RM was already created without an
+assignee, patch it now via PUT before continuing to Step 6.
+
+---
+
+## Step 6 — Post
 
 Once the user has confirmed the final text(s) and duration, post.
 
