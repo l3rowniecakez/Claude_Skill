@@ -87,8 +87,8 @@ Once the developer approves the plan, implement **one phase at a time**:
   it done — see `feedback-dfm-pas-editing-pitfalls` for the exact checklist, it has caused
   repeat silent bugs. A standalone `dcc32` compile passing is a weak signal only, not proof
   the real IDE build passes.
-- Code comments/change-log lines: `-- Redmine #<id> Add By Panupun.su <date> : ... #ai-work`
-  (`feedback-dev-name-panupun-su`, `feedback-tag-ai-work-comments`).
+- Code comments/change-log lines: `-- Redmine #<id> Add By <Developer Name> <date> : ... #ai-work`
+  — fill in the actual developer's name/initials; ask if not already known from context.
 
 ---
 
