@@ -1,17 +1,23 @@
 ---
 installer: create-shortcut
 name: redmine-ur
-description: 'Implement a Redmine UR (User Request) code fix in the OGL_Operation Delphi7 group-insurance repo: read + analyze the RM, plan (with Phase/Task breakdown for large work), get developer approval before any coding, implement phase-by-phase with a review gate at each phase, then record the result as DB script file(s) + a FormEdit.txt update in the ticket folder. Use when user says "/redmine-ur", sends a Redmine UR ticket, or asks to fix/แก้ไข a program point in this repo. Never write code before explicit approval, never touch anything outside the requested scope, and never skip the FormEdit.txt/db-script recording step when a fix is done.'
+description: 'Implement a Redmine UR (User Request) code fix in any Delphi7 group-insurance program suite repo (OGL_Operation, OGL_Claim, OGL_Benefit, OGL_Center_Report, OGL_FindInfo, OGL_Premium, OGL_Reinsurance, OGL_Sale, GroupLife, etc. — not limited to OGL_Operation): read + analyze the RM, plan (with Phase/Task breakdown for large work), get developer approval before any coding, implement phase-by-phase with a review gate at each phase, then record the result as DB script file(s) + a FormEdit.txt update in the ticket folder. Use when user says "/redmine-ur", sends a Redmine UR ticket, or asks to fix/แก้ไข a program point in this suite. Never write code before explicit approval, never touch anything outside the requested scope, and never skip the FormEdit.txt/db-script recording step when a fix is done.'
 created_at: 2026-07-24T12:23:48+07:00
 argument-hint: "[redmine-issue-url-or-number] [ticket-folder-path]"
 ---
 
 # /redmine-ur — Redmine UR Fix + FormEdit.txt/DB-Script Recorder
 
-Workflow for a Redmine **UR (User Request)** ticket against the Delphi 7 "Operation Group
-Life Insurance System" repo (`OGL_Operation.dpr`, see `reference-delphi7-group-insurance-repo`
-memory — `/mnt/d/WORK/delphi7_for_claude`, its own `CLAUDE.md` auto-loads there). The point of
-this skill is not just to make the code change, but to plan it properly, get it approved
+Workflow for a Redmine **UR (User Request)** ticket against **any Delphi 7 program in the
+group-insurance suite** — not just `OGL_Operation`. The suite includes multiple sibling
+programs living as separate repo folders under `D:\WORK\` (e.g. `OGL_Operation`, `OGL_Claim`,
+`OGL_Benefit`, `OGL_Center_Report`, `OGL_FindInfo`, `OGL_Premium`, `OGL_Reinsurance`,
+`OGL_Sale`, `GroupLife`) — which one applies depends on the ticket. It's unconfirmed whether
+each sibling repo has its own `CLAUDE.md`/doc structure the way `OGL_Operation` does (see
+`reference-delphi7-group-insurance-repo` memory — `/mnt/d/WORK/delphi7_for_claude`), so
+**always ask the developer for the exact repo/working-copy path** for the program this ticket
+targets — every time, don't assume or reuse a path from a previous ticket. The point of this
+skill is not just to make the code change, but to plan it properly, get it approved
 phase-by-phase, and make sure every fix is **recorded** the way this project always records
 them: a numbered DB script file per stored procedure/table touched, and a `FormEdit.txt`
 update in the same ticket folder.
@@ -26,6 +32,11 @@ If not passed as `$ARGUMENTS`, ask the user for the Redmine issue URL/number. Fe
 ```bash
 curl -s -H "X-Redmine-API-Key: <key>" "https://redmine.ochi.link/issues/<id>.json?include=journals"
 ```
+
+Also ask the developer, every time, which program in the group-insurance suite this ticket
+targets and the exact source repo/working-copy path for it (e.g. `/mnt/d/WORK/OGL_Claim`,
+`/mnt/d/WORK/OGL_Operation`, ...) — don't assume it's `OGL_Operation`/`delphi7_for_claude` or
+reuse a path from a previous ticket.
 
 Also confirm the local ticket-group folder, e.g. `D:\WORK\JIRA\<ticket folder>\` (the
 on-disk folder name may say "JIRA" and "UR <date>" — that's legacy naming, out of scope;
