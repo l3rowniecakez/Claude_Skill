@@ -116,6 +116,18 @@ is actually needed. (`feedback-never-store-db-credentials`)
 
 For every stored procedure created or altered for this ticket, in the ticket folder:
 
+- **Every `.sql` script file must start with a `USE [<DB>]` / `GO` header** naming the
+  target database, before any other statement, e.g.:
+  ```sql
+  USE [OGL]
+  GO
+  ```
+  or
+  ```sql
+  USE [Oceanlife]
+  GO
+  ```
+  This applies to every script generated in this step — Store and Structure alike.
 - Check whether `NNN_<DB> Alter Store <ProcName>.sql` (or `Create Store`) already exists
   for that **exact proc name**, regardless of which Redmine ticket originally created it.
   - Exists → **overwrite it in place** with the new full body, same filename/number (an
