@@ -214,13 +214,11 @@ gate):
 
 1. Confirm Step 7 (`FormEdit.txt`) is done — this is a required part of closing, not an
    optional follow-up.
-2. If any Table/View/Stored Procedure was touched, also overwrite the matching file(s)
-   under `D:\WORK\delphi7_for_claude\Doc\db-schema\{OGL,OceanLife}\...` to match the newly
-   deployed state (same encoding/format already used there — UTF-16LE, `Script Date`
-   comment updated). If the phase was Delphi-code-only, this is a no-op — but check every
-   time, don't skip the check.
 
-(`feedback-phase-by-phase-approval`)
+Do **not** touch `D:\WORK\delphi7_for_claude\Doc\db-schema\...` — those doc snapshots are
+no longer maintained. For any table/stored-procedure structure question, query the live DB
+directly instead of reading or writing files under that path.
+(`feedback-phase-by-phase-approval`, `feedback-no-read-dbschema-docs-use-db52`)
 
 ---
 
