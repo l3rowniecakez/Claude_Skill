@@ -123,9 +123,14 @@ recipient, wording can vary case to case). Example pattern given by the develope
 \`\`\`
 
 ขอบคุณครับ
+
+#ai-work
 ```
 
-Fill in the approved SQL, confirm the final note text with the developer, then post it
+**The final note text MUST end with `#ai-work`** (per the `feedback-tag-ai-work-comments`
+memory) — append it while drafting the note the first time, not as an afterthought pass,
+since that's exactly how it keeps getting missed in past runs. Fill in the
+approved SQL, confirm the final note text (tag included) with the developer, then post it
 (note: this is a **PUT** to the issue, not POST — POST on `/issues/<id>.json` 404s
 since that path is only for creating a new issue):
 ```bash
@@ -179,7 +184,9 @@ falls under — choose one from:
 - Leave
 
 Also ask for a short detail/comment for the time entry (default: the ticket subject if
-not given).
+not given). **The comment MUST end with `#ai-work`** (per the `feedback-tag-ai-work-comments`
+memory) — append it while drafting the comment string, before it goes into the `-d` payload
+below.
 
 Look up the matching `activity_id` for the chosen name via
 `https://redmine.ochi.link/enumerations/time_entry_activities.json` before posting.
