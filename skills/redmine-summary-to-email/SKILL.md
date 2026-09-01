@@ -294,6 +294,10 @@ to repeat any of Appendix A again on this machine.
 
 ## Notes
 
+- This skill never creates or writes to a Redmine issue — every Redmine call it makes is a
+  read (`GET`, e.g. Step 1's `.../users/current.json` connectivity check or Step 7's time
+  entries). It must never call `POST https://redmine.ochi.link/issues.json`, including to
+  "test" the API key.
 - Steps 2–5 are asked **once ever** — check memory first, every single time this skill is
   invoked, before asking. Never re-ask just because it's a new session.
 - Step 1's API key follows the same permanent-memory rule as every other `/redmine-*` skill

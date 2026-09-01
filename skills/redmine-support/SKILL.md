@@ -17,6 +17,12 @@ approval.
 Redmine access: see the `reference-redmine-api-key` memory (`X-Redmine-API-Key` header,
 `https://redmine.ochi.link`). Read the issue via `.json`, never scrape the HTML page.
 
+**Never create a new Redmine issue — hard rule, no exceptions:** every write this skill
+makes is a `PUT` to the existing `/issues/<id>.json` (status update in Step 2, note in
+Step 5) or a `POST` to `/time_entries.json` (Step 8). This skill must never call
+`POST https://redmine.ochi.link/issues.json` for any reason, including to sanity-check
+the API key or curl syntax — use `GET .../users/current.json` for that instead.
+
 Case knowledge base lives in `references/cases.md` next to this file — it grows over
 time as more cases are handled. Treat it as the skill's memory of "cases we've seen
 before," separate from the general Claude memory system.

@@ -52,6 +52,14 @@ Take the `id` field from the response as `<assigned_to_id>`.
 Show the user the exact set of SubTasks about to be created under RM `<id>` — this is a
 write to a shared system, so get explicit confirmation before Step 4, every time:
 
+**Never use this skill's create call (or any ad-hoc `POST /issues.json`) to "test" API
+connectivity, curl syntax, or the current key** — that endpoint always creates a real,
+permanent issue with no undo. Connectivity is already verified safely via Step 2's
+`GET .../users/current.json`; if that's not enough, ask the user rather than probing with a
+throwaway create. Only create issues here when the user has explicitly asked to scaffold
+the UR SubTask pattern under a specific named parent RM — never speculatively, never as a
+dry run.
+
 Level-1 SubTasks (subject text verbatim, no numbering prefix):
 1. `Get Req. / ประเมิน CA / Design UI / Design การเก็บข้อมูล / Meet สรุปกับ User`
 2. `Dev.`

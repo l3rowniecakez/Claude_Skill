@@ -23,6 +23,14 @@ before every `curl` call that sets `notes` or `comments` (per the
 before). Treat it as a mandatory pre-flight check on that field, every single time, not
 something to recall passively.
 
+**Never create a new Redmine issue — hard rule, no exceptions:** every write this skill
+makes is a `PUT` to an existing `/issues/<id>.json` (Note) or a `POST` to
+`/time_entries.json` (Logtime). This skill must never call
+`POST https://redmine.ochi.link/issues.json` for any reason — including to "test" that the
+API key/curl syntax works. If connectivity ever needs a sanity check, use
+`GET .../users/current.json` instead. Opening a brand-new RM is never something this skill
+does incidentally.
+
 ---
 
 ## Step 0 — Identify the issue

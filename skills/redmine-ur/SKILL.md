@@ -26,6 +26,12 @@ update in the same ticket folder.
 
 ## Step 1 — Get the Redmine URL
 
+**Never create a new Redmine issue as part of this skill** — every Redmine call this skill
+makes is a read (`GET`); it never `POST`s to `https://redmine.ochi.link/issues.json`. If a
+new/related RM genuinely needs opening, that requires the user's explicit instruction and a
+separate action (e.g. `/redmine-create-ur-pattern` or manual creation) — never something
+done incidentally while planning or implementing this ticket.
+
 If not passed as `$ARGUMENTS`, ask the user for the Redmine issue URL/number. Fetch it (see
 `reference-redmine-api-key` memory for the key):
 

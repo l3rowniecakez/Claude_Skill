@@ -119,7 +119,10 @@ not save a file, draft an email, or write anything back to Redmine.
 
 ## Notes
 
-- Purely read-only: never call POST/PUT against Redmine from this skill.
+- Purely read-only: never call POST/PUT against Redmine from this skill. In particular,
+  never call `POST https://redmine.ochi.link/issues.json` — this skill has no legitimate
+  reason to ever create an issue, including to "test" the API key (use
+  `GET .../users/current.json` for that, per Step 1).
 - Step 1's API key follows the same permanent-memory rule as every other `/redmine-*` skill.
 - Do not invent task descriptions — only use what's actually in each entry's `comments`
   (and, in detailed mode, the issue subject).
