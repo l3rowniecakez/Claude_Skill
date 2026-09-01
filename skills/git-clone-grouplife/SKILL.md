@@ -1,14 +1,14 @@
 ---
 installer: create-shortcut
-name: gitclone-grouplife
-description: 'Clone source code เฉพาะ App เดียว (ไม่ใช่ทั้ง repo) จาก Gitblit กลุ่ม delphi ลงเครื่อง โดยดูข้อมูล repo/path จากชีตติดตาม (spreadsheet 18zoUG8L_a5pmg-4_TD0g2ZLjzgpIMlKM0IcVN07_2u0). Use when user says "/gitclone-grouplife", ต้องการ clone/ดึง source code ของโปรแกรมกลุ่มประกันกลุ่มลงเครื่อง.'
+name: git-clone-grouplife
+description: 'Clone source code เฉพาะ App เดียว (ไม่ใช่ทั้ง repo) จาก Gitblit กลุ่ม delphi ลงเครื่อง โดยดูข้อมูล repo/path จากชีตติดตาม (spreadsheet 18zoUG8L_a5pmg-4_TD0g2ZLjzgpIMlKM0IcVN07_2u0). Use when user says "/git-clone-grouplife", ต้องการ clone/ดึง source code ของโปรแกรมกลุ่มประกันกลุ่มลงเครื่อง.'
 created_at: 2026-08-26T00:00:00+07:00
 argument-hint: "[ชื่อ App หรือบางส่วนของชื่อ] [folder ปลายทาง]"
 ---
 
-# /gitclone-grouplife — Clone เฉพาะ App เดียวจาก Gitblit
+# /git-clone-grouplife — Clone เฉพาะ App เดียวจาก Gitblit
 
-Sibling ของ [[reference-gitclone-grouplife-update-skill]] — skill นั้นหา path แล้ว
+Sibling ของ [[reference-git-clone-grouplife-update-skill]] — skill นั้นหา path แล้ว
 บันทึกลงชีต ส่วน skill นี้**อ่าน**ชีตนั้นเพื่อเอา path ไป `git clone` ลงเครื่องจริง
 skill นี้เป็น read-only ต่อชีต ไม่เคยเขียนอะไรกลับเข้าไป
 
@@ -30,10 +30,10 @@ trade-off นี้ซ้ำแทนการแก้ script เงียบ �
 รับคำค้น (พิมพ์แค่บางส่วนได้) แล้วค้นหา:
 ```bash
 ~/.config/redmine-summary-to-email/venv/bin/python3 \
-  ~/.claude/skills/gitclone-grouplife/scripts/search_app.py "<คำค้น>"
+  ~/.claude/skills/git-clone-grouplife/scripts/search_app.py "<คำค้น>"
 ```
 - **0 ผลลัพธ์**: แจ้งผู้ใช้ไม่เจอ ถามชื่ออื่น หรือแนะนำให้เช็คว่า App นี้เคยถูก
-  บันทึกไว้ในชีตหรือยัง (ถ้ายังไม่มี ต้องไปใช้ `/gitclone-grouplife-update` ก่อน
+  บันทึกไว้ในชีตหรือยัง (ถ้ายังไม่มี ต้องไปใช้ `/git-clone-grouplife-update` ก่อน
   ไม่ใช่หน้าที่ของ skill นี้ที่จะไป scan Gitblit เอง)
 - **1 ผลลัพธ์**: ยืนยันชื่อเต็มกับผู้ใช้สั้น ๆ ก่อนไป Step 2
 - **มากกว่า 1 ผลลัพธ์**: โชว์ชื่อ App เต็มทั้งหมด (พร้อม Group/repo ที่สังกัด เผื่อชื่อ
@@ -50,7 +50,7 @@ trade-off นี้ซ้ำแทนการแก้ script เงียบ �
 
 ```bash
 ~/.config/redmine-summary-to-email/venv/bin/python3 \
-  ~/.claude/skills/gitclone-grouplife/scripts/clone_app.py \
+  ~/.claude/skills/git-clone-grouplife/scripts/clone_app.py \
   "<repo field จาก search_app.py>" "<sub_folder จาก search_app.py>" "<dest_dir>"
 ```
 
@@ -60,11 +60,11 @@ trade-off นี้ซ้ำแทนการแก้ script เงียบ �
   เท่านั้น (เช็คได้ด้วย `git sparse-checkout list` ใน dest_dir) `dest_dir` ยังเป็น
   git repo ปกติ ใช้ `git add`/`commit`/`push` จาก dest_dir ได้เลย
 - Auth SSH ใช้ credential จาก `~/.config/gitblit-web/credentials.json` (บัญชี
-  เดียวกับที่ `/gitclone-grouplife-update` ใช้ login เว็บ) แทนที่ placeholder
+  เดียวกับที่ `/git-clone-grouplife-update` ใช้ login เว็บ) แทนที่ placeholder
   `<gitblit_user>` ใน "repo" field ด้วย username จริงจากไฟล์นี้อัตโนมัติ — ถ้าไฟล์
   นี้ไม่มี (เครื่องใหม่) ให้ขอ username/password จากผู้ใช้แล้วสร้างไฟล์รูปแบบ
   `{"base_url": "https://10.100.2.187:8443/", "username": "...", "password":
-  "..."}` เอง (ดู [[reference-gitclone-grouplife-update-skill]] — credential เดียวกับ
+  "..."}` เอง (ดู [[reference-git-clone-grouplife-update-skill]] — credential เดียวกับ
   [[reference-gitblit-credentials]], password rotate รายเดือน)
 - ถ้าคืน `{"error": ...}` ให้หยุดและแจ้งผู้ใช้ทันที (script ลบ dest_dir
   ที่สร้างค้างไว้ให้เองถ้า clone ล้มเหลวกลางคัน เพราะเป็นแค่ผลลัพธ์ที่ทำไม่สำเร็จ

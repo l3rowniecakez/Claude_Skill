@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Search the gitclone-grouplife tracking sheet
+"""Search the git-clone-grouplife tracking sheet
 (spreadsheet 18zoUG8L_a5pmg-4_TD0g2ZLjzgpIMlKM0IcVN07_2u0, tab resolved live)
 for Apps whose AppName contains a keyword — read-only, this skill never
-writes to the sheet (that's /gitclone-grouplife-update's job).
+writes to the sheet (that's /git-clone-grouplife-update's job).
 
 Usage:
   search_app.py <keyword>

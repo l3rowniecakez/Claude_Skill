@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find / upsert rows in the "gitclone-grouplife" tracking sheet
+"""Find / upsert rows in the "git-clone-grouplife" tracking sheet
 (spreadsheet 18zoUG8L_a5pmg-4_TD0g2ZLjzgpIMlKM0IcVN07_2u0, tab resolved live
 — it was renamed "Sheet1" -> "Main" once already, so this never hardcodes
 the tab name).

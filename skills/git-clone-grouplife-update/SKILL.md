@@ -1,12 +1,12 @@
 ---
 installer: create-shortcut
-name: gitclone-grouplife-update
-description: 'ค้นหา App (โฟลเดอร์ที่มี "trunk" อยู่ข้างใน) ใน repo กลุ่ม delphi บน Gitblit แล้วเพิ่มแถวใหม่ในชีตติดตาม path สำหรับ git clone รายแอพ (spreadsheet 18zoUG8L_a5pmg-4_TD0g2ZLjzgpIMlKM0IcVN07_2u0). Use when user says "/gitclone-grouplife-update", มี app ใหม่ต้องการ path เต็มสำหรับ sparse-checkout, หรือถามหา trunk path ของโปรแกรมใน repo กลุ่ม delphi.'
+name: git-clone-grouplife-update
+description: 'ค้นหา App (โฟลเดอร์ที่มี "trunk" อยู่ข้างใน) ใน repo กลุ่ม delphi บน Gitblit แล้วเพิ่มแถวใหม่ในชีตติดตาม path สำหรับ git clone รายแอพ (spreadsheet 18zoUG8L_a5pmg-4_TD0g2ZLjzgpIMlKM0IcVN07_2u0). Use when user says "/git-clone-grouplife-update", มี app ใหม่ต้องการ path เต็มสำหรับ sparse-checkout, หรือถามหา trunk path ของโปรแกรมใน repo กลุ่ม delphi.'
 created_at: 2026-08-26T00:00:00+07:00
 argument-hint: "[repo name ใน delphi group] [app name หรือคำค้น]"
 ---
 
-# /gitclone-grouplife-update — Delphi Group App Path Finder + Sheet Recorder
+# /git-clone-grouplife-update — Delphi Group App Path Finder + Sheet Recorder
 
 Repo แต่ละตัวใน Gitblit กลุ่ม `delphi` เป็นการ import โครงสร้าง SVN เก่าเข้ามาทั้งยวง
 เก็บหลาย ๆ โปรแกรม (App) ไว้ในที่เดียว — โครงสร้างเดิมคือ `<App>/trunk` (บาง repo มี
@@ -49,7 +49,7 @@ step ให้ผู้ใช้ยืนยัน diff ก่อนเขีย
 1. **Repo name** ใน delphi group — เช็ค list ปัจจุบันได้ด้วย:
    ```bash
    ~/.config/redmine-summary-to-email/venv/bin/python3 \
-     ~/.claude/skills/gitclone-grouplife-update/scripts/scan_repo.py list-repos
+     ~/.claude/skills/git-clone-grouplife-update/scripts/scan_repo.py list-repos
    ```
    (ปัจจุบัน 6 ตัว: `apprunjobs`, `claim-work-legacy`, `claim-work`, `faxclaim-prog`,
    `groupwork-system-2016`, `groupwork` — ถ้ามี repo ใหม่ในกลุ่มจะโผล่ในนี้อัตโนมัติ)
@@ -72,7 +72,7 @@ step ให้ผู้ใช้ยืนยัน diff ก่อนเขีย
    ใช้เวลาไม่กี่นาที ไม่ต้องรัน background ก็ได้ถ้าทำทีละ repo):
    ```bash
    ~/.config/redmine-summary-to-email/venv/bin/python3 \
-     ~/.claude/skills/gitclone-grouplife-update/scripts/scan_repo.py scan-all "<repo>" \
+     ~/.claude/skills/git-clone-grouplife-update/scripts/scan_repo.py scan-all "<repo>" \
      > /tmp/.../scan/<repo>.json
    ```
    เช็ค `truncated` ในผลลัพธ์เสมอ — ถ้า `true` แปลว่าชน `--max-requests` (default
@@ -84,12 +84,12 @@ step ให้ผู้ใช้ยืนยัน diff ก่อนเขีย
    `Sub Folder` จากผลลัพธ์ scan, `repo`=`git clone
    ssh://<gitblit_user>@10.100.2.187:29418/delphi/<repo>.git` — **username ต้องเป็น
    placeholder `<gitblit_user>` ตัวอักษรเป๊ะ ๆ ห้าม fix เป็น username ของใครคนใด
-   คนหนึ่ง เด็ดขาด** เพราะชีตนี้จะถูก skill อื่นในอนาคตดึงไปใช้
+   คนหนึ่ง (เช่น `<your-username>`) เด็ดขาด** เพราะชีตนี้จะถูก skill อื่นในอนาคตดึงไปใช้
    clone จริง คนละคนกับที่ทำ skill นี้ก็ต้องแทนที่ placeholder ด้วย username ของ
    ตัวเองได้) แล้วเขียนทีเดียวด้วย:
    ```bash
    echo '[{...}, {...}, ...]' | ~/.config/redmine-summary-to-email/venv/bin/python3 \
-     ~/.claude/skills/gitclone-grouplife-update/scripts/sheet_ops.py upsert-batch
+     ~/.claude/skills/git-clone-grouplife-update/scripts/sheet_ops.py upsert-batch
    ```
    (เขียน 1 ครั้งต่อ 1 batch — เร็วกว่าและปลอดภัยกว่าเรียก `upsert` ทีละแถวเป็น
    ร้อยครั้ง คำนวณ match/row number จากสถานะชีตครั้งเดียวตอนเริ่ม จึงห้ามรันซ้อนกัน
@@ -107,7 +107,7 @@ step ให้ผู้ใช้ยืนยัน diff ก่อนเขีย
 
 ```bash
 ~/.config/redmine-summary-to-email/venv/bin/python3 \
-  ~/.claude/skills/gitclone-grouplife-update/scripts/scan_repo.py find \
+  ~/.claude/skills/git-clone-grouplife-update/scripts/scan_repo.py find \
   "<repo>" "<คำค้น>" [--start "<parent folder path ถ้ารู้>"] [--max-requests N]
 ```
 
@@ -142,7 +142,7 @@ scan_repo.py list "<repo>" ["<path>"]
 
 ```bash
 ~/.config/redmine-summary-to-email/venv/bin/python3 \
-  ~/.claude/skills/gitclone-grouplife-update/scripts/sheet_ops.py find "<AppName>"
+  ~/.claude/skills/git-clone-grouplife-update/scripts/sheet_ops.py find "<AppName>"
 ```
 
 ถ้า `found: true` แปลว่ามีอยู่แล้วที่ row นั้น — Step 4 จะ **update ทับแถวนี้**
@@ -166,7 +166,7 @@ echo '{
   "repo": "git clone ssh://<gitblit_user>@10.100.2.187:29418/delphi/<repo>.git",
   "Sub Folder": "<path จาก match, ลงท้าย /trunk>"
 }' | ~/.config/redmine-summary-to-email/venv/bin/python3 \
-  ~/.claude/skills/gitclone-grouplife-update/scripts/sheet_ops.py upsert
+  ~/.claude/skills/git-clone-grouplife-update/scripts/sheet_ops.py upsert
 ```
 
 - Match ด้วย AppName ก่อน ถ้าไม่ตรงค่อย fallback ไป match ด้วย Sub Folder

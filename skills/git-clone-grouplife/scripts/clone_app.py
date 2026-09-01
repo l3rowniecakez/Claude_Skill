@@ -21,7 +21,7 @@ path) over a flat layout once they realized push wouldn't work otherwise —
 Auth: SSH password login (no usable pubkey — see
 [[reference_claimautomation_repo]]), credential read from
 ~/.config/gitblit-web/credentials.json (shared with the sibling
-gitclone-grouplife-update skill's web session — same Gitblit account).
+git-clone-grouplife-update skill's web session — same Gitblit account).
 Non-interactive password entry via SSH_ASKPASS (gitblit_askpass.sh next to
 this script) + SSH_ASKPASS_REQUIRE=force (needs OpenSSH >= 8.4).
 
