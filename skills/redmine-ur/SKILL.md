@@ -142,6 +142,36 @@ For every stored procedure created or altered for this ticket, in the ticket fol
   - Doesn't exist → create it with the next unused number in the folder.
 - Table/View DDL changes get their own `NNN_<DB> Create/Alter Table <TableName>.sql`,
   same folder-scoped numbering rule.
+- **`CREATE PROCEDURE` vs `ALTER PROCEDURE` inside the file body — decided by whether the
+  proc has ever actually shipped to Production, never by how many times the file itself
+  was edited during SIT/UAT development:**
+  - Proc has **never been deployed to Production** (brand-new this ticket, still
+    mid-development, ticket hasn't gone live yet) → the statement must stay
+    `CREATE PROCEDURE` no matter how many rounds of SIT/UAT bugfix edits it goes through.
+    Prepend a guard so repeat SIT/UAT redeploys don't error, but the real statement stays
+    CREATE:
+    ```sql
+    IF EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ProcName]') AND type = 'P')
+        DROP PROCEDURE [dbo].[ProcName]
+    GO
+
+    CREATE PROCEDURE [dbo].[ProcName]
+    ```
+    Using `ALTER` here silently corrupts the deploy script: it looks fine on SIT/UAT
+    (object already exists there from your own earlier deploy) but fails outright the
+    first time it actually runs against Production, since Production has never seen the
+    object.
+  - Proc **already exists on Production** (a pre-existing legacy proc being modified, or
+    a proc from this same ticket that has already gone live in an earlier release) →
+    `ALTER PROCEDURE` is correct, no guard needed.
+  - The trap: fixing a bug found during SIT/UAT testing on a not-yet-shipped proc makes
+    `ALTER` *feel* right because the object already exists on the environment you're
+    staring at — but the file describes what must run on a virgin Production DB, not what
+    reruns cleanly on your dev copy. Before touching this keyword on any edit, check
+    whether the ticket has a Go-live/deploy-together dependency still pending — if
+    nothing in the ticket has reached Production yet, everything net-new in it stays
+    CREATE regardless of edit count.
+  - (`feedback-sql-script-create-vs-alter`)
 
 (`feedback-alter-script-one-file-per-proc`)
 
@@ -160,7 +190,7 @@ Redmine <ticket-number> : <ticket-group title>
 =================================
 
 [ Delphi Form ]
-   - <ProgramName>.exe
+   - <ProgramName>.exe [<ticket-number-or-branch>] [<repo-url>]
      - Form Edit : <Path\FormName>      (existing form modified)
      - Form Add : <Path\FormName>       (brand-new form)
 
@@ -194,7 +224,7 @@ Redmine <ticket-number> : <ticket-group title>
    <FileName>". Examples:
    ```
    [ Delphi Form ]
-      - OGL_Operation.exe
+      - OGL_Operation.exe [ticket/3] [ssh://<gitblit_user>@10.100.2.187:29418/delphi/some-repo.git]
          - Form Edit : DMOper แก้ไข TMSStoreProc : ZGL_PolicySetting เพิ่ม field PolicyNo, PolicyYear
          - Form Edit : DMOper เพิ่ม TMSStoreProc : ZGL_DebtCollect
          - Form Edit : ListOperPolicy แก้ไข TMSQuery : ChkBenefitDate_Cov เพิ่ม field PolicyYear
@@ -203,6 +233,17 @@ Redmine <ticket-number> : <ticket-group title>
    that same unit (e.g. "Form Edit : DMOper เพิ่ม function GenBenefitsTablePDF") — the goal
    is that someone reading only the top summary block can tell exactly which component(s)
    were touched, in which unit, without opening the diff.
+
+   **The App name line itself must carry the Gitblit ticket/branch and the repo URL, each in
+   its own `[...]` bracket**, e.g.
+   `- CLPro63_P.exe [ticket/1] [ssh://<gitblit_user>@10.100.2.187:29418/delphi/groupwork.git]` —
+   this suite has many sibling programs living in different git repos (not just
+   `OGL_Operation`), so the App name alone doesn't tell a future reader where the code
+   actually lives or which Gitblit ticket tracks it. Fill this in as soon as a ticket/branch
+   exists for the change (even if code+push happens in a later phase) — don't leave it blank
+   and back-fill "later." If no ticket/repo exists yet at the time this line is first written
+   (planning/Phase 1 before any commit), write `[ticket TBD] [repo TBD]` as a placeholder and
+   correct it once the ticket is created — never silently omit both fields going forward.
 
 2. **Append a new dated entry below the existing history** — never delete or rewrite past
    entries. Format: `YYYY-MM-DD - Redmine #NNNN : <title> #ai-work` (or
