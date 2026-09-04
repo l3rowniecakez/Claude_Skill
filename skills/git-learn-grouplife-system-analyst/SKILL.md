@@ -61,11 +61,14 @@ docstring "HARD RULE" ในไฟล์นั้น (Phase 6 ของ orchestr
   Delphi Path File/Sheet URL; Detail tab = `[150, 420, 150, 150, 110, 260]` สำหรับ
   Component Name/Description/Component Caption/Event Name/DB/Call Store (Description
   กว้างสุดเพราะมักมีข้อความยาว) — ดูค่าคงที่ `MENU_CONTENTS_COL_WIDTHS`/`DETAIL_COL_WIDTHS`
-  ในสองไฟล์นั้นถ้าต้องปรับอีกในอนาคต **ยกเว้นแถวหัวข้อ "ขั้นตอนการใช้งาน (User Manual
-  Steps)"** ในแต่ละ detail tab — แถวนี้ต้องไม่ wrap (คงเป็นบรรทัดเดียว overflow ไปทางขวา
-  เหมือน section title ปกติ ไม่ใช่ wrap เป็นสองบรรทัดเหมือนคอลัมน์อื่น) ตามฟีดแบ็กผู้ใช้
-  2026-09-04 — ทำใน `sheet_write.py` ด้วย request ที่ตั้ง `wrapStrategy: OVERFLOW_CELL`
-  เฉพาะแถวนั้น ยิงทีหลัง general wrap request เพื่อ override
+  ในสองไฟล์นั้นถ้าต้องปรับอีกในอนาคต **ยกเว้นทั้งบล็อก "ขั้นตอนการใช้งาน (User Manual
+  Steps)"** ในแต่ละ detail tab — คือทั้งแถวหัวข้อ **และทุกแถว step ข้างใต้มันด้วย** ต้องไม่
+  wrap เด็ดขาด (คงเป็นบรรทัดเดียว overflow ไปทางขวาเหมือน section title/note ปกติ ไม่ใช่ wrap
+  เป็นหลายบรรทัดเหมือนคอลัมน์อื่น) — ยืนยันซ้ำโดยผู้ใช้ 2026-09-04 หลังพบว่า implementation
+  รอบแรก override แค่แถวหัวข้อแถวเดียว ทำให้แถว step จริงยังโดน wrap อยู่ (แก้แล้วให้ override
+  ครอบทั้งช่วง `manual_header_row` ถึง `manual_header_row + len(manual_steps)`) — ทำใน
+  `sheet_write.py` ด้วย request ที่ตั้ง `wrapStrategy: OVERFLOW_CELL` ครอบทั้งบล็อก ยิงทีหลัง
+  general wrap request เพื่อ override
 - **ไม่มีการ copy ไฟล์ "Template" (`1wI9_Q-Zw50vLMNbtozKhCpb7ebsLYtmyHUC_1gBnLnY`) เลย** —
   ผู้ใช้ยืนยันให้สร้างชีตเปล่าใหม่ทุกครั้งที่เจอ App ที่ยังไม่เคยมี ไฟล์ Template และไฟล์ที่ผู้ใช้
   ทำมือไว้ก่อนหน้า (เช่น `GroupLifeInsuranceSystem_Benefits` ที่มีอยู่แล้วในโฟลเดอร์

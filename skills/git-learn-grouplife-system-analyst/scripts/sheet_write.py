@@ -236,15 +236,18 @@ def write_detail_tab(sheets, spreadsheet_id, sheet_id, payload):
     requests.append(wrap_align_request(sheet_id, len(DETAIL_HEADER)))
     requests.extend(column_width_requests(sheet_id, DETAIL_COL_WIDTHS))
     if manual_header_row:
-        # "ขั้นตอนการใช้งาน (User Manual Steps)" section heading — per user feedback
-        # 2026-09-04, this one row must NOT wrap (stays one line, overflowing into
-        # empty cells to the right like a normal section title). Must come after
-        # the general wrap_align_request above so it overrides that row.
+        # "ขั้นตอนการใช้งาน (User Manual Steps)" section — per user feedback 2026-09-04
+        # (re-confirmed 2026-09-04 with a screenshot showing step rows still wrapping),
+        # the WHOLE section — the heading row AND every step row below it — must NOT
+        # wrap, ever: each stays one line, overflowing into empty cells to the right
+        # like a normal section title/note. Must come after the general
+        # wrap_align_request above so it overrides that range.
         requests.append({
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
-                    "startRowIndex": manual_header_row - 1, "endRowIndex": manual_header_row,
+                    "startRowIndex": manual_header_row - 1,
+                    "endRowIndex": manual_header_row + len(manual_steps),
                     "startColumnIndex": 0, "endColumnIndex": len(DETAIL_HEADER),
                 },
                 "cell": {"userEnteredFormat": {"wrapStrategy": "OVERFLOW_CELL"}},
