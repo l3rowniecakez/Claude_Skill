@@ -18,8 +18,18 @@ Sibling ของ [[git-clone-grouplife]] (ใช้ clone App ลงเคร�
 บน local `master` โดยไม่รู้ตัว แล้วไปเจอปัญหาตอน merge (local master มี commit ค้างที่
 [[git-merge-master]] จะไม่ยอม reset ทับให้เงียบ ๆ)
 
+**ลำดับก่อนหลังที่ถูกต้อง — ต้องเปิด ticket บน remote ก่อนเสมอ**: เลข ticket ของ
+Gitblit เป็นเลข auto-increment ที่**ฝั่ง server เป็นคนกำหนดให้**ตอนสร้าง ticket จริง —
+ถ้าสร้าง local branch ด้วยเลขที่เดา/จองไว้ล่วงหน้าเองก่อนที่ ticket จะถูกเปิดจริงบน
+remote จะเสี่ยงชนกับเลขที่คนอื่นเปิด ticket คนละใบพร้อม ๆ กัน (race condition ฝั่ง
+server) ดังนั้นลำดับที่ถูกต้องคือ **[[git-new-ticket]] ก่อน** (เปิด ticket บน Gitblit
+จริง ได้เลข `<N>` ที่ server ยืนยันแล้ว) **แล้วค่อยเรียก skill นี้** เอาเลข `<N>` จริง
+นั้นมาใช้ตั้งชื่อ local branch — ไม่ใช่กลับกัน
+
 **กฎเหล็ก**: ห้ามเดา ticket number หรือ base branch เอง ต้องได้จาก user ตรง ๆ และ
-ห้าม `checkout -b` ทับ/ลบ branch เดิมที่มีอยู่แล้วโดยไม่ถามก่อนเสมอ
+ห้าม `checkout -b` ทับ/ลบ branch เดิมที่มีอยู่แล้วโดยไม่ถามก่อนเสมอ — ถ้า user ยังไม่มี
+เลข ticket จริง (ยังไม่ได้เปิดผ่าน [[git-new-ticket]]) ให้แนะนำให้ไปเปิด ticket ก่อน
+อย่ารับเลขที่ user "คิดจะใช้" หรือเลขที่เดาไว้มาสร้าง branch ให้เด็ดขาด
 
 ## Step 0: Init
 
@@ -42,8 +52,12 @@ date "+🕐 %H:%M %Z (%A %d %B %Y)"
    git -C "<path>" branch --show-current
    ```
    ถ้า path ไม่มีอยู่จริง หรือไม่ใช่ git repo จริง ให้หยุดแจ้ง user ทันที ห้ามเดาต่อ
-2. **เลข ticket** (Gitblit) ที่จะเริ่มงาน (เช่น `15`) — ต้องได้มาจาก user ตรง ๆ ห้ามเดา
-   — ใช้ตั้งชื่อ branch เป็น `ticket/<N>` ตาม convention เดียวกับ
+2. **เลข ticket** (Gitblit) ที่จะเริ่มงาน (เช่น `15`) — **ต้องเป็นเลขจาก ticket ที่เปิด
+   บน remote จริงแล้วเท่านั้น** (ผ่าน [[git-new-ticket]]) ห้ามรับเลขที่ user เดา/จองไว้
+   ล่วงหน้าเอง (เสี่ยงชนกับ ticket ที่คนอื่นเปิดพร้อมกัน เพราะเลขนี้ server เป็นคน
+   auto-increment ให้ ไม่ใช่เลขที่เลือกเองได้) ถ้า user ยังไม่มีเลข ticket จริง ให้ถาม
+   ก่อนว่าเปิด ticket ผ่าน [[git-new-ticket]] แล้วหรือยัง ถ้ายัง ให้แนะนำไปเปิดก่อน —
+   ใช้เลขที่ได้มาตั้งชื่อ branch เป็น `ticket/<N>` ตาม convention เดียวกับ
    [[reference_claim_dataextraction_gitblit]]
 3. **Base branch** — default `master` ถ้า user ไม่ได้ระบุ (ตรงกับ convention ที่
    [[git-merge-master]] ใช้อยู่แล้ว) ถามยืนยันเฉพาะถ้า user ต้องการ base อื่น
