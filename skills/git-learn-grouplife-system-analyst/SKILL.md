@@ -16,6 +16,21 @@ Sibling ของ [[reference-git-learn-grouplife-skill]] — ใช้วิธ
 delete ข้อมูลผ่าน Store อะไรใน DB ไหน) แล้วสรุปเป็นเอกสารคู่มือ+ข้อมูลเชิงเทคนิคลง
 Google Sheet 1 ไฟล์ต่อ 1 App — เป้าหมายปลายทางคือให้เอกสารนี้เอาไปใช้สร้างระบบใหม่ได้
 
+## กฎสำคัญ: เมนูเดิม = UPDATE เท่านั้น ห้ามสร้างใหม่ซ้ำ (เพิ่ม 2026-09-04 ตามฟีดแบ็กผู้ใช้)
+
+ถ้าผู้ใช้เลือกวิเคราะห์เมนูที่**เคยวิเคราะห์แล้วมาก่อน** (ตัดสินจาก breadcrumb เต็ม
+`"หมวดใหญ่" => "กลุ่มย่อย" => "เมนูปลายทาง"` ตรงกับแถวที่มีอยู่แล้วใน tab "Menu Contents"
+คอลัมน์ "เมนูงาน" — ไม่ใช่ตัดสินจากชื่อ tab) ผลลัพธ์ต้องเป็นการ **update tab เดิม + row เดิม**
+เท่านั้น ห้ามสร้าง tab ใหม่หรือ row ใหม่ซ้ำซ้อนเด็ดขาด แม้ agent ใน Phase 5 จะเสนอชื่อ
+`tab_title` ที่ต่างไปจากครั้งก่อนก็ตาม (เช่น ตั้งชื่อ unit หลักคนละแบบ)
+
+`scripts/sheet_write.py` **บังคับกฎนี้เองอัตโนมัติ**: ก่อนเขียนทุกครั้งจะอ่าน "Menu Contents"
+หา breadcrumb ที่ตรงกัน ถ้าเจอจะดึง gid จาก Sheet URL ของแถวนั้น มา resolve เป็นชื่อ tab
+จริงปัจจุบัน แล้ว**บังคับทับ** `payload["tab_title"]` ที่ส่งเข้ามาให้ตรงกับ tab เดิมเสมอ ก่อน
+ค่อย clear+rewrite เนื้อหา — ดู `find_existing_tab_gid()`/`get_title_by_sheet_id()` และ
+docstring "HARD RULE" ในไฟล์นั้น (Phase 6 ของ orchestrator จึงไม่ต้องเช็คเองซ้ำ แต่ต้อง
+**ส่ง `breadcrumb` ให้ตรงกับที่เคยวิเคราะห์เป๊ะทุกตัวอักษร** ไม่งั้น script จะมองว่าเป็นเมนูใหม่)
+
 **รูปแบบเอกสาร (ล็อกกับผู้ใช้แล้ว 2026-09-04)**: ดู `scripts/drive_ops.py` และ
 `scripts/sheet_write.py` docstring สำหรับ schema เต็ม — สรุปสั้น ๆ:
 - โครงสร้าง Drive: `<Root>/<Group>/<AppName>` (1 spreadsheet ต่อ 1 App, ไม่ใช่ 1 spreadsheet
@@ -36,6 +51,21 @@ Google Sheet 1 ไฟล์ต่อ 1 App — เป้าหมายปลา
   หรือ Component Name/...) พื้นน้ำเงินเข้ม `rgb(0.106,0.267,0.471)` ตัวหนังสือขาวตัวหนา
   จัดกึ่งกลาง — ทำอัตโนมัติทั้งใน `drive_ops.py` (ตอนสร้าง Menu Contents ใหม่) และ
   `sheet_write.py` (ทุกครั้งที่เขียน/overwrite detail tab)
+- **Word wrap + จัดข้อความชิดขอบบน + ความกว้างคอลัมน์** (เพิ่ม 2026-09-04 ตามฟีดแบ็กผู้ใช้):
+  ทุกคอลัมน์ของทุก tab ต้อง wrap ข้อความ (`wrapStrategy: WRAP`) และจัดชิดขอบบน
+  (`verticalAlignment: TOP`) เสมอ — ทำอัตโนมัติทั้งใน `drive_ops.py` (ตอนสร้าง Menu
+  Contents ใหม่, ครอบคลุมล่วงหน้าถึงแถว 2000 เผื่อแถวเมนูที่จะเพิ่มทีหลัง) และ
+  `sheet_write.py` (re-apply ทุกครั้งที่เขียน/overwrite detail tab ไม่ใช่แค่ตอนสร้างครั้งแรก)
+  พร้อมตั้งความกว้างคอลัมน์แบบ fixed pixel ให้พอดีเนื้อหาแต่ละคอลัมน์ (ไม่กว้าง/แคบเกินไป):
+  Menu Contents = `[90, 260, 380, 220, 250]` สำหรับ No/เมนูงาน/รายละเอียดเมนูงาน/
+  Delphi Path File/Sheet URL; Detail tab = `[150, 420, 150, 150, 110, 260]` สำหรับ
+  Component Name/Description/Component Caption/Event Name/DB/Call Store (Description
+  กว้างสุดเพราะมักมีข้อความยาว) — ดูค่าคงที่ `MENU_CONTENTS_COL_WIDTHS`/`DETAIL_COL_WIDTHS`
+  ในสองไฟล์นั้นถ้าต้องปรับอีกในอนาคต **ยกเว้นแถวหัวข้อ "ขั้นตอนการใช้งาน (User Manual
+  Steps)"** ในแต่ละ detail tab — แถวนี้ต้องไม่ wrap (คงเป็นบรรทัดเดียว overflow ไปทางขวา
+  เหมือน section title ปกติ ไม่ใช่ wrap เป็นสองบรรทัดเหมือนคอลัมน์อื่น) ตามฟีดแบ็กผู้ใช้
+  2026-09-04 — ทำใน `sheet_write.py` ด้วย request ที่ตั้ง `wrapStrategy: OVERFLOW_CELL`
+  เฉพาะแถวนั้น ยิงทีหลัง general wrap request เพื่อ override
 - **ไม่มีการ copy ไฟล์ "Template" (`1wI9_Q-Zw50vLMNbtozKhCpb7ebsLYtmyHUC_1gBnLnY`) เลย** —
   ผู้ใช้ยืนยันให้สร้างชีตเปล่าใหม่ทุกครั้งที่เจอ App ที่ยังไม่เคยมี ไฟล์ Template และไฟล์ที่ผู้ใช้
   ทำมือไว้ก่อนหน้า (เช่น `GroupLifeInsuranceSystem_Benefits` ที่มีอยู่แล้วในโฟลเดอร์

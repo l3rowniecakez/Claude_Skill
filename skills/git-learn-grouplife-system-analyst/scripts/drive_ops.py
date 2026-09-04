@@ -41,12 +41,51 @@ ROOT_FOLDER_ID = "1lAPvU0Rh5Nm5BZuOvlPrAHxDdAl81LLZ"
 MENU_CONTENTS_TITLE = "Menu Contents"
 MENU_CONTENTS_HEADER = ["No", "เมนูงาน", "รายละเอียดเมนูงาน", "Delphi Path File", "Sheet URL"]
 
-# Colors matched to the user's hand-built example spreadsheet (added 2026-09-04,
-# see screenshots referenced in that session) — light blue for the label column of
-# the header info block, dark navy with white bold text for table header rows.
-LABEL_BG = {"red": 0.812, "green": 0.886, "blue": 0.953}
-TABLE_HEADER_BG = {"red": 0.106, "green": 0.267, "blue": 0.471}
+# Color read directly from the user's Template spreadsheet's actual cell formatting
+# via the Sheets API (1wI9_Q-Zw50vLMNbtozKhCpb7ebsLYtmyHUC_1gBnLnY, both the "Menu
+# Contents" and a detail tab) on 2026-09-04 — confirmed ONE single dark-navy color is
+# used for BOTH the label column of the header info block AND the table header row,
+# always with white bold text. An earlier guess at two different shades (light blue
+# for labels, separate dark navy for headers) was wrong — corrected per user feedback.
+LABEL_BG = {"red": 0.02745098, "green": 0.21568628, "blue": 0.3882353}
+TABLE_HEADER_BG = LABEL_BG
 WHITE = {"red": 1, "green": 1, "blue": 1}
+
+# Word wrap + top vertical alignment on every column, and fixed-but-reasonable
+# column pixel widths — applied to the whole sheet (well past any row currently
+# written, so future menu rows inherit it too) every time this script creates
+# the Menu Contents tab. Added 2026-09-04 per user feedback (see SKILL.md).
+MENU_CONTENTS_COL_WIDTHS = [90, 260, 380, 220, 250]
+FORMATTED_ROW_COUNT = 2000
+
+
+def wrap_align_request(sheet_id, end_col, end_row=FORMATTED_ROW_COUNT):
+    return {
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 0,
+                "endRowIndex": end_row,
+                "startColumnIndex": 0,
+                "endColumnIndex": end_col,
+            },
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "TOP"}},
+            "fields": "userEnteredFormat.wrapStrategy,userEnteredFormat.verticalAlignment",
+        }
+    }
+
+
+def column_width_requests(sheet_id, widths):
+    return [
+        {
+            "updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": i, "endIndex": i + 1},
+                "properties": {"pixelSize": w},
+                "fields": "pixelSize",
+            }
+        }
+        for i, w in enumerate(widths)
+    ]
 
 
 def _escape(name):
@@ -76,9 +115,34 @@ def ensure_group_folder(drive, group_name):
     return created["id"], True
 
 
+def reformat_existing_menu_contents(sheets, spreadsheet_id):
+    """Re-apply wrap+top-align+column-width to "Menu Contents" on every run, even
+    for a spreadsheet created before this formatting existed (2026-09-04 user
+    feedback: an already-created spreadsheet never got it since ensure_app_spreadsheet
+    used to only format at creation time) or one created by an older skill version."""
+    meta = sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheet_id = None
+    for s in meta["sheets"]:
+        if s["properties"]["title"] == MENU_CONTENTS_TITLE:
+            sheet_id = s["properties"]["sheetId"]
+            break
+    if sheet_id is None:
+        return
+    sheets.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body={
+            "requests": [
+                wrap_align_request(sheet_id, len(MENU_CONTENTS_HEADER)),
+                *column_width_requests(sheet_id, MENU_CONTENTS_COL_WIDTHS),
+            ]
+        },
+    ).execute()
+
+
 def ensure_app_spreadsheet(drive, sheets, folder_id, app_name, program_name, repo_url, sub_folder, today):
     existing_id = find_child(drive, folder_id, app_name, "application/vnd.google-apps.spreadsheet")
     if existing_id:
+        reformat_existing_menu_contents(sheets, existing_id)
         return existing_id, False
 
     body = {
@@ -120,10 +184,10 @@ def ensure_app_spreadsheet(drive, sheets, folder_id, app_name, program_name, rep
                             "endColumnIndex": 1,
                         },
                         "cell": {"userEnteredFormat": {
-                            "textFormat": {"bold": True},
+                            "textFormat": {"bold": True, "foregroundColor": WHITE},
                             "backgroundColor": LABEL_BG,
                         }},
-                        "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.backgroundColor",
+                        "fields": "userEnteredFormat.textFormat,userEnteredFormat.backgroundColor",
                     }
                 },
                 {
@@ -149,6 +213,8 @@ def ensure_app_spreadsheet(drive, sheets, folder_id, app_name, program_name, rep
                         "fields": "gridProperties.frozenRowCount",
                     }
                 },
+                wrap_align_request(sheet_id, len(MENU_CONTENTS_HEADER)),
+                *column_width_requests(sheet_id, MENU_CONTENTS_COL_WIDTHS),
             ]
         },
     ).execute()
