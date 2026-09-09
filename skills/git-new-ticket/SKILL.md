@@ -48,7 +48,7 @@ date "+🕐 %H:%M %Z (%A %d %B %Y)"
    ถ้า login fail (ไม่ใช่ HTTP Basic — ต้องเป็น form login ตาม Step 3) ให้แจ้ง user
    ว่า auth ไม่ผ่าน (password อาจ rotate ไปแล้ว) แล้วถามรหัสใหม่ ไม่เดาซ้ำเอง
 3. **Ref RM ที่จะเปิด Ticket** — เลข Redmine ticket ที่ ticket นี้เกี่ยวข้อง (เช่น
-   `93857`)
+   `12345`)
 
 ---
 
@@ -70,9 +70,18 @@ curl -s -H "X-Redmine-API-Key: <key>" \
 - **description**: สรุปสั้น ๆ จาก Redmine (หรือที่ user ให้มา) ต่อท้ายด้วย
   `#ai-work` เสมอ — เช็คทุกครั้งว่ามี tag นี้ต่อท้ายจริง อย่าเชื่อว่าใส่แล้ว
   ([[feedback_tag_ai_work_comments]] — จุดที่เคยพลาดซ้ำมาแล้วในบริบทอื่น)
-- ฟิลด์ที่เหลือปล่อย default: `type=2` (bug) เว้นแต่ user ระบุอย่างอื่น,
-  `severity=0`, `priority:priority=2` (normal), `responsible:responsible=` ว่าง
-  (unassigned)
+- **type** — วิเคราะห์จาก field `tracker.name` ใน JSON ที่ดึงมาจาก Redmine (ไม่ใช่
+  เดาจาก subject เฉย ๆ):
+  - ถ้า `tracker.name` เป็น **Bug** (หรือคำที่แปลว่าบั๊ก/ข้อผิดพลาด) → Gitblit
+    `type=2` (bug)
+  - กรณีอื่นทั้งหมด (Feature, Support, UR/User Request, Task, ฯลฯ) → **default
+    เป็น `type=1` (task)**
+  - ถ้าดึง tracker จาก Redmine ไม่ได้ (fetch fail) ให้ถาม user ว่าเป็นงานประเภท
+    ไหนแทนที่จะเดา
+  - ค่าที่วิเคราะห์ได้ต้องโชว์ให้ user เห็นใน Step 3 (สรุปก่อน confirm) เสมอ
+    เผื่อ user อยากแก้เอง
+- ฟิลด์ที่เหลือปล่อย default: `severity=0`, `priority:priority=2` (normal),
+  `responsible:responsible=` ว่าง (unassigned) — เว้นแต่ user ระบุอย่างอื่น
 
 ---
 
@@ -130,9 +139,14 @@ NEWPAGE=$(curl -s -k -c "$JAR" -b "$JAR" "$BASE/tickets/new/$REPO_2F")
 #    (wicketSubmitFormById('idc', '../../?wicket:interface=:{N}:editForm:create::...', ...))
 
 # 5) POST AJAX submit ไปที่ wicket:interface ที่ parse ได้ พร้อม header Wicket-Ajax
+#    ต้องระบุ charset=UTF-8 ตรง ๆ ใน Content-Type — ไม่งั้น Jetty/Wicket จะ decode
+#    body เป็น ISO-8859-1 (default ของ servlet spec เมื่อไม่ได้ระบุ) ทำให้ภาษาไทย
+#    (multi-byte UTF-8) เพี้ยนเป็นตัวอักษรมั่ว ๆ ตอนแสดงผล แม้ curl --data-urlencode
+#    จะ percent-encode byte UTF-8 ของ input มาถูกต้องแล้วก็ตาม
 curl -s -k -c "$JAR" -b "$JAR" \
   -H "Wicket-Ajax: true" -H "X-Requested-With: XMLHttpRequest" \
   -H "Accept: application/xml, text/xml, */*; q=0.01" \
+  -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
   --data-urlencode "title=<title>" \
   --data-urlencode "topic=<topic>" \
   --data-urlencode "description=<description พร้อม #ai-work>" \
