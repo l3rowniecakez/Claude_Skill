@@ -1,7 +1,7 @@
 ---
 installer: create-shortcut
 name: git-merge-master
-description: 'เตรียม local repo ของ App ในกลุ่ม delphi group-insurance ให้พร้อม merge ticket/N (Gitblit) เข้า branch master โดยใช้ explicit merge commit ตาม convention ที่ยืนยันแล้ว (ห้าม plain fast-forward) แล้วส่งต่อให้ /git-commit-push ทำ push จริง. รับได้ทั้งชื่อ App (ค้นหา Repo URL ผ่าน /git-clone-grouplife) หรือ Repo URL ตรงๆ พร้อม path code ในเครื่องและเลข Redmine ไว้ดึง subject จริงมาประกอบ merge commit message. Use when user says "/git-merge-master" หรือต้องการเตรียม merge ticket เข้า master.'
+description: 'เตรียม local repo (ไม่ว่าจะเป็น App ในกลุ่ม delphi group-insurance หรือ repo ทั่วไปที่ clone ผ่าน /git-clone) ให้พร้อม merge ticket/N (Gitblit) เข้า branch master โดยใช้ explicit merge commit ตาม convention ที่ยืนยันแล้ว (ห้าม plain fast-forward) แล้วส่งต่อให้ /git-commit-push ทำ push จริง. รับได้ทั้งชื่อ App ในกลุ่ม delphi group-insurance (ค้นหา Repo URL ผ่าน /git-clone-grouplife) หรือ Repo URL ตรงๆ (สำหรับ repo อื่นที่ clone ผ่าน /git-clone) พร้อม path code ในเครื่องและเลข Redmine ไว้ดึง subject จริงมาประกอบ merge commit message. Use when user says "/git-merge-master" หรือต้องการเตรียม merge ticket เข้า master.'
 created_at: 2026-09-03T10:22:18+07:00
 argument-hint: "[ชื่อ App หรือ Repo URL] [Path code ในเครื่อง] [เลข ticket] [เลข Redmine]"
 ---
@@ -9,7 +9,9 @@ argument-hint: "[ชื่อ App หรือ Repo URL] [Path code ในเค
 # /git-merge-master — เตรียม merge ticket/N เข้า master (Gitblit)
 
 Sibling ของ [[git-clone-grouplife]] (ใช้ script `search_app.py` ตัวเดียวกันหา repo
-จากชื่อ App) และ [[git-commit-push]] (ใช้ทำ push จริงในขั้นสุดท้าย) — งานของ skill
+จากชื่อ App — เฉพาะกรณี App อยู่ในกลุ่ม delphi group-insurance), [[git-clone]]
+(สำหรับ repo ทั่วไปอื่น ๆ ที่ต้องใส่ Repo URL ตรง ๆ แทนชื่อ App) และ
+[[git-commit-push]] (ใช้ทำ push จริงในขั้นสุดท้าย) — งานของ skill
 นี้คือเตรียม local repo ให้พร้อม push ขึ้น master แบบถูกต้องตาม convention ที่
 ยืนยันแล้วใน [[reference_claim_dataextraction_gitblit]]: **ห้าม plain
 fast-forward ticket/N เข้า master เด็ดขาด** ต้องเป็น explicit merge commit
@@ -45,15 +47,19 @@ date "+🕐 %H:%M %Z (%A %d %B %Y)"
      ~/.config/redmine-summary-to-email/venv/bin/python3 \
        ~/.claude/skills/git-clone-grouplife/scripts/search_app.py "<คำค้น>"
      ```
-     - **0 ผลลัพธ์ / มากกว่า 1 ผลลัพธ์**: จัดการเหมือน [[git-clone-grouplife]] เป๊ะ
-       (แจ้งไม่เจอ หรือโชว์ทั้งหมดให้เลือกเจาะจง — ห้ามเดาว่าอันไหนที่ต้องการ)
+     - **0 ผลลัพธ์**: อาจเพราะ repo นี้ไม่ใช่ App ในกลุ่ม delphi group-insurance เลย
+       (เช่น repo ที่ clone มาผ่าน [[git-clone]] แทน) — แจ้ง user ว่าไม่พบใน
+       tracking sheet แล้วขอ **Repo URL ตรง ๆ** มาแทนชื่อ App ห้ามค้นซ้ำเดา ๆ
+     - **มากกว่า 1 ผลลัพธ์**: จัดการเหมือน [[git-clone-grouplife]] เป๊ะ (โชว์ทั้งหมด
+       ให้เลือกเจาะจง — ห้ามเดาว่าอันไหนที่ต้องการ)
      - **1 ผลลัพธ์**: ยืนยันชื่อเต็มสั้น ๆ กับ user แล้วเก็บค่า `repo` ไว้ (แทน
        placeholder `<gitblit_user>` ด้วย username จริงจาก
        `~/.config/gitblit-web/credentials.json` เช่นเดียวกับที่
        [[git-clone-grouplife]] ทำ)
 2. **Path code ในเครื่อง** — path ที่ clone ไว้แล้วบนเครื่อง (path ที่มีการแก้ไข/
    commit ค้างอยู่บน branch `ticket/<N>` แล้ว — ปกติมาจากที่เคยใช้
-   [[git-clone-grouplife]] + [[git-commit-push]] ทำไว้ก่อนหน้าในงานเดียวกัน) รับมา
+   [[git-clone-grouplife]] หรือ [[git-clone]] + [[git-new-branch]] +
+   [[git-commit-push]] ทำไว้ก่อนหน้าในงานเดียวกัน) รับมา
    เป็น argument ตรง ๆ ได้เลย ไม่ต้องถามซ้ำถ้า user ใส่มาแล้ว แต่**ต้องตรวจสอบก่อน
    แตะอะไรเสมอ**:
    ```bash
@@ -115,13 +121,17 @@ curl -s -H "X-Redmine-API-Key: <key>" \
 จากนั้น merge:
 
 ```bash
-git -C "<path>" merge --no-ff "ticket/<N>" -m "Merged #<N> \"$SUBJECT\""
+git -C "<path>" merge --no-ff "ticket/<N>" -m "Merged #<N> \"$SUBJECT\" #ai-work"
 ```
 
 - ข้อความ commit **ต้องเป๊ะตามฟอร์แมต** `Merged #<N> "<subject>"` เท่านั้น (อ้างอิง
   [[reference_claim_dataextraction_gitblit]] — ผิดฟอร์แมตแล้ว Gitblit ticket UI จะ
   ไม่ขึ้นสถานะ "Merged" ให้ถูกต้อง) — `<N>` ในฟอร์แมตนี้คือเลข **Gitblit ticket**
   เสมอ ไม่ใช่เลข Redmine (สองเลขนี้คนละตัวกัน อย่าสลับ)
+- **`#ai-work` ต้องต่อท้ายเสมอ** ตาม [[feedback_tag_ai_work_comments]] — ต่อท้าย
+  หลังปิด quote ของ subject แบบ `Merged #<N> "<subject>" #ai-work` (อยู่หลัง
+  ส่วนที่ Gitblit parse เพื่อขึ้นสถานะ ticket จึงไม่กระทบ format ที่ต้องเป๊ะข้างบน)
+  ห้ามลืมแม้ merge commit นี้จะดูเหมือนเป็น "auto-generated message" ก็ตาม
 - **ถ้าเกิด merge conflict**: หยุดทันที ห้ามแก้ conflict เดาเอง — แจ้ง user ว่าไฟล์
   ไหน conflict บ้าง (`git -C "<path>" status --short`) แล้วให้ user ตัดสินใจ/แก้เอง
   ก่อน (เสนอ `git merge --abort` ถ้า user อยากยกเลิกแล้วเริ่มใหม่)

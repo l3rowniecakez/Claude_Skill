@@ -1,15 +1,17 @@
 ---
 installer: create-shortcut
 name: git-new-branch
-description: 'สร้าง local branch ใหม่ชื่อ `ticket/<N>` ให้ repo ของ App ในกลุ่ม delphi group-insurance ที่ clone ไว้แล้ว โดย fetch + sync กับ base branch (default `master`) ล่าสุดจาก origin ก่อนแตกออกมาเสมอ เพื่อไม่ให้ทำงานค้างอยู่บน local master โดยไม่ตั้งใจ. Use when user says "/git-new-branch" หรือกำลังจะเริ่มแก้โค้ดสำหรับ ticket ใหม่ในโปรแกรมกลุ่มนี้.'
+description: 'สร้าง local branch ใหม่ชื่อ `ticket/<N>` ให้ repo ที่ clone ไว้แล้ว (ไม่ว่าจะ clone ผ่าน /git-clone-grouplife สำหรับ App กลุ่ม delphi group-insurance หรือผ่าน /git-clone สำหรับ repo ทั่วไปจาก GitBlit) โดย fetch + sync กับ base branch (default `master`) ล่าสุดจาก origin ก่อนแตกออกมาเสมอ เพื่อไม่ให้ทำงานค้างอยู่บน local master โดยไม่ตั้งใจ. Use when user says "/git-new-branch" หรือกำลังจะเริ่มแก้โค้ดสำหรับ ticket ใหม่บน repo ที่ใช้ pattern ticket/N แบบ Gitblit.'
 created_at: 2026-09-04T00:00:00+07:00
 argument-hint: "[Path code ในเครื่อง] [เลข ticket] [base branch (default master)]"
 ---
 
 # /git-new-branch — สร้าง local branch สำหรับเริ่มงาน ticket ใหม่
 
-Sibling ของ [[git-clone-grouplife]] (ใช้ clone App ลงเครื่องก่อนหน้านี้แล้ว) และอยู่
-คนละช่วงกับ [[git-merge-master]] (ทำตอน**จบ**งานเพื่อ merge เข้า master) — skill นี้
+Sibling ของ [[git-clone-grouplife]] และ [[git-clone]] (ใช้ clone repo ลงเครื่องก่อน
+หน้านี้แล้ว ไม่ว่าจะเป็น App ในกลุ่ม delphi group-insurance หรือ repo ทั่วไปจาก
+GitBlit) และอยู่คนละช่วงกับ [[git-merge-master]] (ทำตอน**จบ**งานเพื่อ merge เข้า
+master) — skill นี้
 ทำตอน**เริ่ม**งาน: เตรียม local branch ชื่อ `ticket/<N>` ที่แตกออกมาจาก base branch
 ล่าสุดจาก origin (ปกติคือ `master`) ให้พร้อมแก้โค้ด
 
@@ -45,7 +47,8 @@ date "+🕐 %H:%M %Z (%A %d %B %Y)"
 ให้ถามเพิ่ม ห้ามเดาแทน:
 
 1. **Path code ในเครื่อง** — path ที่ clone ไว้แล้ว (ปกติมาจาก [[git-clone-grouplife]]
-   ก่อนหน้านี้ในงานเดียวกัน) ต้องตรวจสอบก่อนแตะอะไรเสมอ:
+   หรือ [[git-clone]] ก่อนหน้านี้ในงานเดียวกัน แล้วแต่ว่า repo นี้เป็น App กลุ่ม
+   delphi group-insurance หรือ repo ทั่วไป) ต้องตรวจสอบก่อนแตะอะไรเสมอ:
    ```bash
    git -C "<path>" rev-parse --is-inside-work-tree
    git -C "<path>" remote get-url origin
@@ -130,7 +133,7 @@ git -C "<path>" branch --show-current
 ```
 
 สรุปให้ user: สร้าง branch `ticket/<N>` จาก `origin/<base branch>` (commit ล่าสุดคือ
-อะไร) พร้อม path ที่ใช้งานอยู่ แล้วบอกขั้นตอนถัดไปตามลำดับงานปกติของกลุ่มนี้:
+อะไร) พร้อม path ที่ใช้งานอยู่ แล้วบอกขั้นตอนถัดไปตามลำดับงานปกติ:
 
 1. แก้โค้ดใน path นี้ตามปกติ
 2. เมื่อพร้อม commit+push ใช้ [[git-commit-push]] โดยระบุ target branch = `ticket/<N>`
