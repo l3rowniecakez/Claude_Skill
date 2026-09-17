@@ -196,6 +196,34 @@ echo '<JSON payload จาก agent + spreadsheet_id/program_name/repo_url/sub_f
 ```
 คืน `tab_url` (ลิงก์ตรงไปยัง tab ที่เพิ่งเขียน) — เก็บไว้สรุปให้ผู้ใช้ตอนจบ
 
+### กฎสำคัญ: เมนูที่เรียกโปรแกรมภายนอก (WinExec) ต้อง stamp กลับที่ต้นทางด้วย (เพิ่ม 2026-09-17 ตามฟีดแบ็กผู้ใช้)
+
+ถ้า Phase 5 พบว่า leaf menu ที่กำลังวิเคราะห์แท้จริงแล้ว **แค่เรียกโปรแกรม standalone
+อื่นทั้งโปรแกรม** ผ่าน `WinExec` (คนละ `.dpr`/คนละ repo/คนละ App ในชีตติดตาม — ไม่ใช่แค่
+เปิดฟอร์มลูกในโปรแกรมเดียวกัน) ต้องทำ **2 การเขียนเสมอ ไม่ใช่แค่ 1**:
+
+1. วิเคราะห์+เขียนผลลงสเปรดชีตของ **App ปลายทาง** ตามปกติ (ensure + `sheet_write.py`
+   แบบเต็ม พร้อม `component_rows`/`manual_steps`) — ได้ `tab_url` กลับมา
+2. **stamp กลับ** ที่สเปรดชีตของ **App ต้นทาง** (โปรแกรมที่มีเมนูนี้อยู่จริง เช่น
+   OGL_Benefits) ด้วย `sheet_write.py` แบบ **external-program stamp mode** (ดู
+   docstring "EXTERNAL-PROGRAM STAMP MODE" ในไฟล์นั้น) — ส่ง `external_url` เป็น
+   `tab_url` จากขั้นตอน 1 แทนการส่ง `component_rows`/`tab_title`/`manual_steps`:
+   ```json
+   {
+     "spreadsheet_id": "<spreadsheet_id ของ App ต้นทาง>",
+     "breadcrumb": "<breadcrumb เต็มตามที่ผู้ใช้เลือกใน Phase 4 ของ App ต้นทาง>",
+     "description": "เรียกโปรแกรมภายนอก <Program>.exe (WinExec) — รายละเอียดอยู่ใน Sheet ของ App <AppName ปลายทาง>",
+     "delphi_path_file": "WinExec -> <path>\\<Program>.exe (repo <repo ปลายทาง>)",
+     "external_url": "<tab_url จากขั้นตอน 1>",
+     "today": "<วันนี้>"
+   }
+   ```
+   วิธีนี้ไม่สร้าง detail tab ใหม่ใน App ต้นทาง เขียนแค่แถวเดียวใน "Menu Contents" ของมัน
+   โดย Sheet URL ชี้ไปยัง Sheet ของ App ปลายทางโดยตรง — เหตุผล: ถ้าไม่ stamp กลับ
+   "Menu Contents" ของ App ต้นทางจะดูเหมือนเมนูนั้นไม่เคยถูกวิเคราะห์เลย ทั้งที่จริงมี
+   เอกสารอยู่แล้วแค่อยู่คนละไฟล์ — ผู้ใช้ต้องเปิดสารบัญของ App ต้นทางแล้วตามลิงก์ไปอ่าน
+   รายละเอียดที่ App ปลายทางได้ทันที ไม่ใช่เจอช่องว่าง
+
 ## Phase 7 — สรุปให้ผู้ใช้
 
 จบงานให้แจ้ง:

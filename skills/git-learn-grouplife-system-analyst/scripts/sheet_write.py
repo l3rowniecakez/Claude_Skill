@@ -47,6 +47,27 @@ Usage: pass one JSON object on stdin:
   "manual_steps": ["1. ผู้ใช้เปิดเมนู ... แล้วเลือกช่วงวันที่", "2. กด Search ระบบจะ ..."]
 }
 Prints JSON {"tab_gid", "tab_url", "menu_contents_row", "menu_contents_action"}.
+
+EXTERNAL-PROGRAM STAMP MODE (added 2026-09-17, user feedback): when a menu item in
+THIS App's tree turns out to just WinExec/launch a completely different standalone
+program (own .dpr, own repo — analyzed and written into THAT program's own
+spreadsheet instead), the calling App's "Menu Contents" tab must still get a row for
+it — not be silently missing that leaf — with the Sheet URL column pointing at the
+external program's spreadsheet/tab rather than a local detail tab here. Trigger this
+by passing "external_url" (the already-known tab_url of the external program's detail
+tab) instead of "component_rows"/"tab_title"/"manual_steps". No local tab is created
+or cleared in this spreadsheet for that row — only the Menu Contents row is
+upserted, with `delphi_path_file` expected to describe the external call (e.g.
+"WinExec -> Account_Program\\GrpBank_P.exe (repo claim-work-legacy)") so a reader
+knows immediately, without opening the link, that this leaf lives elsewhere.
+{
+  "spreadsheet_id": "...",            # the CALLING App's spreadsheet
+  "breadcrumb": "...",
+  "description": "เรียกโปรแกรมภายนอก GrpBank_P.exe (WinExec) — รายละเอียดอยู่ใน Sheet ของ App GrpBank_P",
+  "delphi_path_file": "WinExec -> Account_Program\\GrpBank_P.exe (repo claim-work-legacy)",
+  "external_url": "https://docs.google.com/spreadsheets/d/<other-id>/edit?gid=<gid>#gid=<gid>",
+  "today": "2026-09-17"
+}
 """
 import sys
 import os
@@ -303,12 +324,29 @@ def main():
     try:
         sheets = sheets_service()
         spreadsheet_id = payload["spreadsheet_id"]
+        rows = read_menu_contents_rows(sheets, spreadsheet_id)
+
+        if payload.get("external_url"):
+            # External-program stamp mode — see module docstring. No local detail
+            # tab; the Menu Contents row's Sheet URL points at the other App's
+            # spreadsheet/tab instead.
+            tab_url = payload["external_url"]
+            row_number, action = upsert_menu_contents_row(sheets, spreadsheet_id, payload, tab_url, rows)
+            touch_menu_contents_date(sheets, spreadsheet_id, payload["today"])
+            result = {
+                "tab_gid": None,
+                "tab_url": tab_url,
+                "menu_contents_row": row_number,
+                "menu_contents_action": action,
+                "external": True,
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return
 
         # RULE (2026-09-04, hard requirement — see SKILL.md "กฎสำคัญ"): if this
         # breadcrumb was already analyzed before, this run is an UPDATE of that
         # exact same menu — reuse its existing tab, never create a second tab for
         # the same menu even if the caller/agent proposed a different tab_title.
-        rows = read_menu_contents_rows(sheets, spreadsheet_id)
         existing_gid = find_existing_tab_gid(rows, payload["breadcrumb"])
         if existing_gid is not None:
             meta = sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
