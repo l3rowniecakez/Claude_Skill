@@ -118,10 +118,39 @@ curl -s -H "X-Redmine-API-Key: <key>" \
   SUBJECT=$(git -C "<path>" log --reverse --format=%s origin/master..ticket/<N> | head -1)
   ```
 
-จากนั้น merge:
+จากนั้น merge แบบ **`--no-commit` ก่อนเสมอ** (ห้าม commit ทันทีในคำสั่งเดียว) เพื่อ
+เปิดช่องให้เช็ค duplicate-code risk ก่อน commit จริง:
 
 ```bash
-git -C "<path>" merge --no-ff "ticket/<N>" -m "Merged #<N> \"$SUBJECT\" #ai-work"
+git -C "<path>" merge --no-commit --no-ff "ticket/<N>"
+```
+
+- **ถ้าเกิด merge conflict**: หยุดทันที ห้ามแก้ conflict เดาเอง — แจ้ง user ว่าไฟล์
+  ไหน conflict บ้าง (`git -C "<path>" status --short`) แล้วให้ user ตัดสินใจ/แก้เอง
+  ก่อน (เสนอ `git merge --abort` ถ้า user อยากยกเลิกแล้วเริ่มใหม่)
+
+- **ถ้า merge สำเร็จแบบไม่มี conflict** — **ห้ามไปต่อ commit ทันที** ต้องเช็ค
+  duplicate-code risk ก่อน: กรณีที่คนอื่นเอาโค้ดของเรา (หรือโค้ดที่ ticket/N นี้จะเพิ่ม)
+  ไป merge เข้า master ไปแล้วก่อนหน้าโดยเราไม่รู้ (ผ่าน cherry-pick/merge อื่น/แก้มือ)
+  git แบบ line-based merge จะไม่ฟ้อง conflict ถ้า diff hunk ขยับบรรทัดไปจนบริบทไม่
+  overlap กับของเดิม — ผลคือโค้ดเบิ้ลใน source แต่ merge "สำเร็จ" เงียบ ๆ โปรแกรม error
+  ทันทีหลัง deploy ให้รันตรวจก่อน commit เสมอ:
+  ```bash
+  python3 ~/.claude/skills/git-merge-master/scripts/check_duplicate_merge.py \
+    "<path>" "ticket/<N>"
+  ```
+  - **ผลลัพธ์ `CLEAN`**: ไปต่อ commit ได้ตามปกติ (ด้านล่าง)
+  - **ผลลัพธ์ `DUPLICATE_RISK_FOUND`**: **ห้าม commit ต่อโดยไม่ถาม** — โชว์ผลลัพธ์
+    ที่ script พิมพ์ออกมาให้ user เห็นเต็ม ๆ (ไฟล์ไหน บรรทัดไหนที่ซ้ำ ซ้ำกี่ครั้ง)
+    แล้วถาม user ตรง ๆ ว่าจะดำเนินการ commit merge นี้ต่อไปจริงไหม (อาจเป็น false
+    positive เช่น boilerplate ที่ซ้ำโดยตั้งใจ) หรือจะ `git merge --abort` แล้วไป
+    ตรวจโค้ดจริงก่อน — **ห้ามตัดสินใจแทน user เด็ดขาด** เพราะนี่คือจุดที่พลาดมาแล้ว
+    ครั้งก่อน (merge ซ้ำโค้ดที่มีอยู่แล้ว โปรแกรม error ทันที)
+
+หลังผ่านการเช็คแล้ว (CLEAN หรือ user ยืนยันให้ผ่านต่อ) ค่อย commit merge จริง:
+
+```bash
+git -C "<path>" commit -m "Merged #<N> \"$SUBJECT\" #ai-work"
 ```
 
 - ข้อความ commit **ต้องเป๊ะตามฟอร์แมต** `Merged #<N> "<subject>"` เท่านั้น (อ้างอิง
@@ -132,9 +161,6 @@ git -C "<path>" merge --no-ff "ticket/<N>" -m "Merged #<N> \"$SUBJECT\" #ai-work
   หลังปิด quote ของ subject แบบ `Merged #<N> "<subject>" #ai-work` (อยู่หลัง
   ส่วนที่ Gitblit parse เพื่อขึ้นสถานะ ticket จึงไม่กระทบ format ที่ต้องเป๊ะข้างบน)
   ห้ามลืมแม้ merge commit นี้จะดูเหมือนเป็น "auto-generated message" ก็ตาม
-- **ถ้าเกิด merge conflict**: หยุดทันที ห้ามแก้ conflict เดาเอง — แจ้ง user ว่าไฟล์
-  ไหน conflict บ้าง (`git -C "<path>" status --short`) แล้วให้ user ตัดสินใจ/แก้เอง
-  ก่อน (เสนอ `git merge --abort` ถ้า user อยากยกเลิกแล้วเริ่มใหม่)
 - Merge สำเร็จแล้ว **ห้าม push เองตรงนี้** — ไปต่อ Step 4
 
 ---
