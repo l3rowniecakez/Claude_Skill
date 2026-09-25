@@ -1,290 +1,178 @@
 ---
-installer: arra-oracle-skills-cli v26.5.16
-origin: Nat Weerawan's brain, digitized — how one human works with AI, captured as code
 name: forward
-description: '[standard] v26.5.16 L-SKLL | Create handoff + enter plan mode for next session. Use when user says "forward", "handoff", "wrap up", or before ending session.'
-argument-hint: "[asap | --only]"
+description: 'บันทึกงานที่ทำค้างไว้ (handoff) ลง vault กลาง ~/ψ/inbox/handoff เพื่อกลับมาทำต่อหลังปิด session/ปิดคอม — แยกตามสายงาน (grouplife ประกันกลุ่ม Delphi / cde / cam / bot) และตามเลข RM, จับสถานะ git/branch/deploy/FormEdit.txt/SQL script/logtime ที่ค้าง แล้วใช้ /recap เรียกกลับมา. Use when user says "/forward", "forward", "handoff", "wrap up", "บันทึกงานไว้ทำต่อ", "จะปิดคอมแล้ว", or before ending session.'
+argument-hint: "[--close RM|key] [--plan] [--list]"
 ---
 
-# /forward - Handoff to Next Session
+# /forward — บันทึกงานค้างไว้ทำต่อ (คู่กับ /recap)
 
-Create context for next session, then enter plan mode to define next steps.
+> Ocean version (2026-09-25) ปรับจาก arra-oracle v26.5.16 — ใช้คู่กับ /recap, script กลางอยู่ที่ `forward/scripts/handoffs.py`
+> (ต้องติดตั้ง forward + recap คู่กันเสมอ). Redmine API key: env `REDMINE_API_KEY` หรือ memory `reference_redmine_api_key.md`
+
+เป้าหมายเดียว: **เปิด session ใหม่ (หรือเปิดคอมวันจันทร์) แล้ว `/recap` ต้องทำงานต่อได้ทันทีโดยไม่ต้องถามซ้ำ**
+ดังนั้น handoff ต้องมีทุกอย่างที่ "หายไปพร้อม context" — path, branch, สถานะ phase, env ที่ deploy แล้ว,
+สิ่งที่ผู้ใช้ยังไม่อนุมัติ, และกฎที่ต้องระวังของงานนั้น
 
 ## Usage
 
 ```
-/forward              # Create handoff, show plan, wait for approval
-/forward asap         # Create handoff + commit immediately (no approval needed)
-/forward --only       # Create handoff only, skip plan mode
+/forward                 # บันทึก handoff ของงานใน session นี้ (1 ไฟล์ต่อ 1 RM/งาน)
+/forward --close 12345  # ปิดงาน RM นั้น (ไม่ขึ้นใน /recap อีก)
+/forward --list          # ดูงานค้างทั้งหมด (= handoffs.py list)
+/forward --plan          # บันทึกเสร็จแล้วเข้า Plan Mode ให้กด approve + clear context
 ```
 
-## Steps
+Script กลาง (ใช้ร่วมกับ /recap): `python3 ~/.claude/skills/forward/scripts/handoffs.py`
+(`list | show KEY | history KEY | verify KEY | close KEY | supersede KEY FILE | dir`)
 
-1. **Git status**: Check uncommitted work
-2. **Detect session**: Current session ID for traceability
-3. **Session summary**: What we did (from memory)
-4. **Pending items**: What's left
-5. **Next steps**: Specific actions
+## Hard Rules
 
-### Session Detection
+1. **Vault ตายตัว** `~/ψ/inbox/handoff/` (absolute: `$HOME/ψ/inbox/handoff`) ไม่ว่า cwd จะอยู่ repo ไหน
+   (`/mnt/d/WORK/...` ก็เขียนมาที่นี่) — ห้าม `git add` ไฟล์ handoff เข้า repo ใดๆ
+2. **ห้าม commit / push / merge / deploy / post Redmine** ใดๆ ใน /forward — แค่ "บันทึกสถานะ" เท่านั้น
+   ถ้ามีงานค้าง commit ให้เขียนเป็น pending "รอคำสั่ง" (ตาม feedback never-auto-commit)
+3. **ห้ามสร้าง GitHub issue** — งานเราอยู่บน Gitblit + Redmine ไม่ใช่ GitHub
+4. **ไม่ต้องใส่ credential ลง handoff** — อ้างชื่อ memory file แทน (เช่น "ใช้ credential จาก memory reference_db_credentials_…")
+5. **1 ไฟล์ต่อ 1 งาน (key)** — session เดียวทำหลาย RM → เขียนหลายไฟล์ แยกกัน, key = `rm<เลข>` (ถ้าไม่มี RM ใช้ slug สั้น เช่น `cde-ocr-cost`)
+6. ข้อความทั้งหมดเป็นภาษาไทย ยกเว้น path / ชื่อไฟล์ / identifier / คำสั่ง
+
+## Step 1 — แยกงานใน session นี้ออกเป็น key
+
+จาก context ของ session: มี RM / งานอะไรบ้างที่แตะ, จัดเข้า stream:
+
+| stream | งาน | สัญญาณ |
+|---|---|---|
+| `grouplife` | ประกันกลุ่ม Delphi7 (OGL_Operation/Benefit/Claim/Sale/…) รวม /redmine-ur, /redmine-support, system-analyst | `.pas/.dfm`, FormEdit.txt, `D:\WORK\JIRA\<RM>...`, SQL Server .52/.22 |
+| `cde` | claim-dataextraction (Cloud Run service/job, drugnorm API) | `/mnt/d/WORK/[Python]/DataExtraction/CDE`, deploy_cloud_run.sh |
+| `cam` | ClaimAutomation (drug norm, Jenkins) | `/mnt/d/WORK/[Python]/ClaimAutomation`, Jenkins job |
+| `bot` | ocean-bot / ocean-bot-admin (UR 20260219) | `/mnt/d/WORK/JIRA/BOT/...`, docker containers |
+| `other` | อื่นๆ (skill, cost report, ฯลฯ) | — |
+
+งานที่ **ปิดจบใน session นี้แล้ว** ไม่ต้องสร้าง handoff ใหม่ — แค่ `handoffs.py close <key>` ถ้ามี handoff เก่าค้างอยู่
+
+## Step 2 — เก็บ state จริง (1 bash call ต่อ repo ที่แตะ)
 
 ```bash
-ORACLE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-ENCODED_PWD=$(echo "$ORACLE_ROOT" | sed 's|^/|-|; s|[/.]|-|g')
-PROJECT_DIR="$HOME/.claude/projects/${ENCODED_PWD}"
-LATEST_JSONL=$(ls -t "$PROJECT_DIR"/*.jsonl 2>/dev/null | head -1)
-if [ -n "$LATEST_JSONL" ]; then
-  SESSION_ID=$(basename "$LATEST_JSONL" .jsonl)
-  echo "SESSION: ${SESSION_ID:0:8}"
-fi
+python3 ~/.claude/skills/forward/scripts/handoffs.py history <key>   # มี handoff เก่าของงานนี้ไหม → อ่านเพื่อ merge pending
+REPO="<repo path ที่แตะ>"
+git -C "$REPO" branch --show-current; git -C "$REPO" log --oneline -3
+git -C "$REPO" status --short; git -C "$REPO" rev-list --count @{u}..HEAD 2>/dev/null || echo no-upstream
 ```
 
-Include in handoff header if detected:
+ถ้ามี handoff เก่าของ key เดียวกัน: pending เก่าที่ยังไม่เสร็จต้อง **ยกมาไว้ในไฟล์ใหม่** (ไม่ใช่ทิ้ง) แล้วค่อย supersede
+
+Session id: เอาจาก path ของ scratchpad/transcript ของ session ปัจจุบัน (uuid เต็ม) — ใช้ `claude --resume <uuid>` ได้
+
+## Step 3 — Checklist เฉพาะสายงาน (ใส่ในหัวข้อ "State")
+
+ตอบเฉพาะข้อที่เกี่ยว, ข้อไหนไม่รู้ให้เขียน `?` ไม่ต้องเดา
+
+**grouplife (Delphi)**
+- Ticket folder (`D:\WORK\JIRA\<RM> ...`) + App/repo path + branch `ticket/N` (Gitblit ticket #N เปิดแล้ว?)
+- Phase ไหนเสร็จ / ผู้พัฒนา compile+test ใน IDE แล้วหรือยัง / phase ถัดไป **ได้ "เริ่ม" แล้วหรือยัง** (ห้ามเริ่มโค้ดเองถ้ายังไม่อนุมัติ)
+- ไฟล์ .pas/.dfm ที่แก้ (ย้ำ: cp874 + CRLF, แก้ด้วย Python splice เท่านั้น)
+- SQL script: ชื่อไฟล์ `NNN_<DB> ...sql`, รันแล้วบน SIT(.52) / UAT(.22) หรือยัง (ต้องครบทั้งสอง)
+- FormEdit.txt อัปเดตถึง phase ไหน
+- Redmine: note / logtime ลงแล้วกี่ ชม. ส่วนไหนยังไม่ลง (#ai-work)
+- scope ห้ามแตะ (ถ้ามี memory scope ของ RM นั้น ให้อ้างชื่อ memory)
+
+**cde / cam (Python, GCP)**
+- repo + branch `ticket/N` + commit hash + merge เข้า master แล้วหรือยัง (ต้องเป็น `Merged #N "..."`)
+- Deploy: env ไหนแล้ว (SIT / UAT / PROD), image tag, revision, ใครสั่ง — env ที่ **ยังไม่ได้รับคำสั่ง deploy** ต้องเขียนชัด
+- ทดสอบ functional บน env นั้นแล้วหรือยัง (log skill ที่ใช้เช็ก: /log-cde-*, /log-drugapi-*)
+- cam: Jenkins job/build number ที่เกี่ยว
+
+**bot (PHP)**
+- repo (bot / admin) + branch, docker container ที่ต้องเปิด (`db`, admin :8080, bot :8081)
+- deploy UAT แล้วหรือยัง, RM deploy notice ที่รอ IT
+- FormEdit.txt (รูปแบบ `[ Web App ]`) อัปเดตแล้วหรือยัง
+
+## Step 4 — เขียนไฟล์
+
+ชื่อไฟล์: `~/ψ/inbox/handoff/YYYY-MM-DD_HH-MM_<key>-<slug>.md` (เวลา `date +%Y-%m-%d_%H-%M`)
+
 ```markdown
-📡 Session: 74c32f34 | repo-name | Xh XXm
-```
-Skip silently if detection fails.
+---
+key: rm12345
+stream: grouplife            # grouplife | cde | cam | bot | other
+rm: 12345                   # หลายเลขคั่น comma ได้ เช่น 12345,12344
+title: แก้ไขการนำเข้าไฟล์ (OGL_App)
+status: open                 # open | waiting (รอคนอื่น/รอ user test) | closed
+repo: /mnt/d/WORK/JIRA/12345 .../OGL_App   # หลาย repo คั่นด้วย ;
+branch: ticket/44
+session: <uuid เต็ม>
+cwd: /home/<user>
+created: 2026-09-25 16:17
+next: ถามผลทดสอบ Phase 3 แล้วบันทึก FormEdit.txt   # 1 บรรทัด — /recap โชว์ตรงนี้
+---
 
-## Output
+# Handoff: RM #12345 — <หัวข้อ>
 
-Resolve vault path first:
-```bash
-ORACLE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-if [ -n "$ORACLE_ROOT" ] && [ -f "$ORACLE_ROOT/CLAUDE.md" ] && { [ -d "$ORACLE_ROOT/ψ" ] || [ -L "$ORACLE_ROOT/ψ" ]; }; then
-  PSI=$(readlink -f "$ORACLE_ROOT/ψ" 2>/dev/null || echo "$ORACLE_ROOT/ψ")
-else
-  PSI=$(readlink -f ψ 2>/dev/null || echo "ψ")
-fi
-```
-
-Write to: `$PSI/inbox/handoff/YYYY-MM-DD_HH-MM_slug.md`
-
-**IMPORTANT**: Always use the resolved `$PSI` path, never the `ψ/` symlink directly.
-This ensures handoffs go to the project's vault (wherever ψ points).
-Do NOT `git add` vault files — they are shared state, not committed to repos.
-
-```markdown
-# Handoff: [Session Focus]
-
-**Date**: YYYY-MM-DD HH:MM
-**Context**: [%]
+📡 Session: <uuid 8 ตัวแรก> | <repo/app> | resume: `claude --resume <uuid>` (จาก cwd ข้างบน)
+**Date**: YYYY-MM-DD HH:MM → ทำต่อ <วัน ถ้า user บอก>
 
 ## What We Did
-- [Accomplishment 1]
-- [Accomplishment 2]
+- ... (สิ่งที่ทำจริง + หลักฐาน: commit hash, journal #, logtime #, revision)
+
+## State
+- (checklist Step 3 ของ stream นี้)
 
 ## Pending
-- [ ] Item 1
-- [ ] Item 2
+- [ ] ... (รวม pending เก่าที่ยังไม่เสร็จจาก handoff ก่อนหน้า)
+- [ ] commit/push ... — รอคำสั่งผู้พัฒนาเท่านั้น
 
 ## Next Session
-- [ ] Specific action 1
-- [ ] Specific action 2
+- [ ] ขั้นแรกที่ต้องทำ/ถาม (เรียงลำดับ)
+
+## ⚠️ Rules / Gotchas ของงานนี้
+- (กฎจาก memory ที่ใช้กับงานนี้ — อ้างชื่อ memory เช่น feedback_phase_by_phase_approval ถ้ามี)
 
 ## Key Files
-- [Important file 1]
-- [Important file 2]
+- (absolute path — Windows path ใส่ได้ แต่ใส่ /mnt/d/... คู่ด้วยถ้าสะดวก)
 ```
 
-### Confirm handoff write (announce-mode — absolute paths required)
-
-# announce-mode → absolute path (no ψ/, no ~/, no $VAR, no ...).
-# Use:  echo "marker: $RESOLVED_PATH"  — bash substitutes. See CONVENTIONS.md.
-
+แล้วรัน:
 ```bash
-HANDOFF_FILE="$PSI/inbox/handoff/$(date +%Y-%m-%d_%H-%M)_${SLUG}.md"
-echo "📤 Handoff: $HANDOFF_FILE"
+python3 ~/.claude/skills/forward/scripts/handoffs.py supersede <key> "<ไฟล์ที่เพิ่งเขียน>"
 ```
 
-## Then: Create Issues from Pending Items
+## Step 5 — Outbox (รวม pending รายวัน)
 
-After writing the handoff file, extract actionable items and offer to create GitHub issues.
-
-### Step 1: Extract Items
-
-From the handoff you just wrote, collect all `- [ ]` items from **Pending** and **Next Session** sections.
-
-### Step 2: Filter Actionable Items
-
-Skip items that are NOT actionable:
-- Items containing "monitor", "watch", "track", "deferred", "maybe", "consider"
-- Items that are vague (less than 4 words after the checkbox)
-
-### Step 3: Check for Duplicates
-
-```bash
-# For each item, check if an issue already exists with a similar title
-gh issue list --state open --search "ITEM_TITLE" --json title --jq '.[].title' 2>/dev/null
-```
-
-Skip items that already have a matching open issue (case-insensitive title match).
-
-### Step 4: Show and Confirm
-
-Display the list of new issues to create:
-
-```
-📋 Create GitHub issues from pending items?
-
-  1. Fix awaken git push auth
-  2. /rrr --deep time-based
-
-Create these 2 issues? [y/N]
-```
-
-**NEVER auto-create issues without user approval.**
-
-If user declines, skip issue creation and continue to plan mode.
-
-### Step 5: Create Issues
-
-If user approves:
-
-```bash
-# Detect repo for issue creation
-REMOTE=$(git remote get-url origin 2>/dev/null)
-# Extract owner/repo from remote URL
-REPO=$(echo "$REMOTE" | sed -E 's|.*[:/]([^/]+/[^/]+?)(\.git)?$|\1|')
-
-# For each actionable item:
-gh issue create --repo "$REPO" --title "ITEM_TITLE" --body "From /forward handoff on YYYY-MM-DD"
-```
-
-Show results:
-```
-Created #115: Fix awaken git push auth
-Created #116: /rrr --deep time-based
-```
-
-### Step 6: Write to Outbox
-
-Regardless of whether issues were created, write items to the outbox:
-
-```bash
-ORACLE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-if [ -n "$ORACLE_ROOT" ] && [ -f "$ORACLE_ROOT/CLAUDE.md" ] && { [ -d "$ORACLE_ROOT/ψ" ] || [ -L "$ORACLE_ROOT/ψ" ]; }; then
-  PSI=$(readlink -f "$ORACLE_ROOT/ψ" 2>/dev/null || echo "$ORACLE_ROOT/ψ")
-else
-  PSI=$(readlink -f ψ 2>/dev/null || echo "ψ")
-fi
-OUTBOX_DIR="$PSI/outbox"
-mkdir -p "$OUTBOX_DIR"
-```
-
-Write to: `$PSI/outbox/YYYY-MM-DD_pending.md`
+append ลง `~/ψ/outbox/YYYY-MM-DD_pending.md` (สร้างถ้ายังไม่มี):
 
 ```markdown
-# Pending Items — YYYY-MM-DD
-
-## From: [repo-name] /forward
-
-- [ ] Item 1 (issue #115)
-- [ ] Item 2 (issue #116)
-- [ ] Item 3 (no issue — skipped: vague)
+## From: <stream> <key> (RM #N) /forward HH:MM
+- [ ] item 1
 ```
 
-### Confirm outbox write (announce-mode — absolute paths required)
+## Step 6 — Memory (เฉพาะเมื่อจำเป็น)
 
-# announce-mode → absolute path (no ψ/, no ~/, no $VAR, no ...).
-# Use:  echo "marker: $RESOLVED_PATH"  — bash substitutes. See CONVENTIONS.md.
+ถ้างานนี้มี `project_*` memory อยู่แล้ว (เช่น project_<งาน>) และสถานะเปลี่ยนอย่างมีนัยสำคัญ
+→ อัปเดต memory นั้นให้ตรง (สั้นๆ + ชี้ไปที่ไฟล์ handoff). **ไม่ต้อง** สร้าง memory ใหม่ทุกครั้งที่ forward — handoff คือที่เก็บหลัก
 
-```bash
-OUTBOX_FILE="$OUTBOX_DIR/$(date +%Y-%m-%d)_pending.md"
-echo "📋 Outbox: $OUTBOX_FILE"
+## Step 7 — สรุปให้ผู้ใช้
+
+```
+📤 Handoff บันทึกแล้ว
+| stream | key | status | next |
+|---|---|---|---|
+| grouplife | rm12345 | open | ถามผลทดสอบ Phase 3 |
+ไฟล์: $HOME/ψ/inbox/handoff/...md   (absolute path เสมอ)
+ปิดงานที่จบแล้ว: rm12344 → closed
+งานค้างอื่นใน vault: N งาน (ดู /recap)
+▶ เปิด session ใหม่แล้วพิมพ์ /recap  (หรือ /recap 12345 เพื่อโหลดงานนี้ตรงๆ)
 ```
 
-### Silent Failures
+## --close KEY
 
-- If `gh` is not available: write to outbox only, skip issue creation silently
-- If repo has no GitHub remote: skip issue creation silently, write to outbox only
-- If `gh auth status` fails: skip issue creation silently, write to outbox only
+`handoffs.py close <key>` (ปิดทั้ง chain ของ key นั้น) แล้วแจ้งผล — ใช้เมื่อ RM ปิด/งานจบ
 
----
+## --plan
 
-## Then: MUST Show Plan Approval Box
+หลัง Step 7: `EnterPlanMode` → เขียน plan (สรุป + Next Session + path handoff) → `ExitPlanMode`
+เพื่อให้ผู้ใช้กด approve + clear context ได้ในหน้าเดียว (ต้องทำครบ 3 ขั้น ไม่งั้น UI ไม่ขึ้น)
+ถ้าไม่มี `--plan` ไม่ต้องเข้า Plan Mode
 
-**CRITICAL — DO NOT SKIP**: The whole point of /forward is the plan approval UI.
-You MUST do ALL 3 steps in order. If you skip any step, the user cannot approve and clear the session.
-
-1. `EnterPlanMode` — enters plan mode
-2. Write plan file — session summary + next steps
-3. `ExitPlanMode` — **THIS shows the approval box** where user can approve/reject/clear
-
-If you only do EnterPlanMode without ExitPlanMode, the user sees nothing.
-If you skip EnterPlanMode entirely, the user sees nothing.
-ALL 3 STEPS ARE REQUIRED.
-
-**Do NOT commit the handoff file** — it lives in the vault, not the repo.
-After writing the handoff, gather cleanup context:
-
-```bash
-# Check for things next session might need to clean up
-git status --short
-git branch --list | grep -v '^\* main$' | grep -v '^  main$'
-gh pr list --state open --json number,title,headRefName --jq '.[] | "#\(.number) \(.title) (\(.headRefName))"' 2>/dev/null
-gh issue list --state open --limit 5 --json number,title --jq '.[] | "#\(.number) \(.title)"' 2>/dev/null
-```
-
-Then:
-
-1. **Call `EnterPlanMode`** tool
-3. In plan mode, write a plan file with:
-   - What we accomplished this session
-   - Pending items carried forward
-   - Cleanup needed (stale branches, open PRs, uncommitted files)
-   - Next session goals and scope
-   - Reference to handoff file path
-   - **Always end plan with a choice table:**
-
-```markdown
-## Next Session: Pick Your Path
-
-| Option | Command | What It Does |
-|--------|---------|--------------|
-| **Continue** | `/recap` | Pick up where we left off |
-| **Clean up first** | See cleanup list below, then `/recap` | Merge PRs, delete branches, close issues, then continue |
-| **Fresh start** | `/recap --quick` | Minimal context, start something new |
-
-### Cleanup Checklist (if any)
-- [ ] [Open PR to merge]
-- [ ] [Stale branch to delete]
-- [ ] [Issue to close]
-- [ ] [Uncommitted work to commit or stash]
-```
-
-4. **Call `ExitPlanMode`** — user sees the built-in plan approval UI
-
-The user gets the standard plan approval screen with options to approve, modify, or reject. This is the proper way to show plans.
-
-If user calls `/forward` again — just show the existing plan, do not re-create the handoff file.
-
-## Wizard v2 Context in Handoff
-
-If CLAUDE.md contains demographics from `/awaken` wizard v2, include in handoff:
-
-```markdown
-## Context
-**Oracle**: [name] ([pronouns]) | **Human**: [name] ([pronouns])
-**Mode**: [Fast/Full Soul Sync] | **Memory**: [auto/manual]
-**Team**: [solo/team context]
-```
-
-This helps the next session orient faster. If demographics not present, skip.
-
----
-
-## ASAP Mode
-
-If user says `/forward asap` or `/forward now`:
-- Write handoff file
-- **Immediately commit and push** — no approval needed
-- Skip plan mode
-- User wants to close fast
-
-## Skip Plan Mode
-
-If user says `/forward --only`:
-- Skip plan mode after commit
-- Just tell user: "💡 Run /plan to plan next session"
+ถ้าเรียก /forward ซ้ำใน session เดิม: อัปเดตไฟล์ handoff เดิมของ key นั้น (ไม่สร้างไฟล์ใหม่ซ้ำ)
 
 ARGUMENTS: $ARGUMENTS

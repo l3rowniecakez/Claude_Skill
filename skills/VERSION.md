@@ -25,7 +25,6 @@ arra-oracle-skills-cli v26.5.16
 - rrr
 - bud
 - inbox
-- go
 - calver
 - dig
 - oracle-family-scan
@@ -47,7 +46,6 @@ arra-oracle-skills-cli v26.5.16
 - incubate
 - bampenpien
 - dream
-- oracle-soul-sync-update
 
 ## Update Skills
 

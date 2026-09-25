@@ -1,20 +1,85 @@
 ---
-installer: arra-oracle-skills-cli v26.5.16
-origin: Nat Weerawan's brain, digitized — how one human works with AI, captured as code
 name: recap
-description: '[standard] v26.5.16 L-SKLL | Session orientation and awareness — retro summaries, handoffs, git state, focus. Use when starting a session, after /jump, lost your place, switching context, or when user asks "now", "where are we", "what are we doing", "status", "recap". Do NOT trigger for "standup" or "morning check" (use /standup), or session mining "dig", "past sessions" (use /dig).'
-argument-hint: "[--now | --deep]"
+description: 'กลับมาทำงานต่อจากที่ /forward บันทึกไว้ — แสดงงานค้างทุกสายงาน (grouplife ประกันกลุ่ม / cde / cam / bot) จาก ~/ψ/inbox/handoff, verify สถานะจริง (git branch, Redmine status) แล้วให้เลือกงานที่จะทำต่อ; /recap <RM> โหลดงานนั้นเต็มๆ. Also session orientation (--now, --quick). Use when starting a session, "recap", "ทำอะไรค้างไว้", "งานค้าง", "where are we", "status". Do NOT trigger for "standup" (use /standup) or "dig"/"past sessions" (use /dig).'
+argument-hint: "[RM|key | --stream S | --all | --now | --quick]"
 trigger: /recap
 ---
 
 # /recap — Session Orientation & Awareness
+
+> Ocean version (2026-09-25): โหมด default เปลี่ยนเป็น **Handoff Mode** ใช้คู่กับ /forward (ต้องติดตั้ง skill forward ด้วย). โหมด --now / --quick / Rich เดิมยังใช้ได้ (อยู่ด้านล่าง)
+> ตอบเป็นภาษาไทยเสมอ
+
+## HANDOFF MODE (default)
+
+```
+/recap                 # งานค้างทุกสายงาน → verify → ถามว่าจะทำอันไหนต่อ
+/recap 12345          # โหลด handoff ล่าสุดของ RM #12345 เต็มๆ แล้วเริ่มทำต่อ
+/recap --stream cde    # เฉพาะสายงาน (grouplife | cde | cam | bot | other)
+/recap --all           # รวมงานที่ closed/superseded/legacy เก่า
+/recap --rich          # โหมด Rich เดิม (recap-rich.ts, ψ ของ repo)
+```
+
+Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกับ cwd) — script กลาง:
+`python3 ~/.claude/skills/forward/scripts/handoffs.py`
+
+### A. `/recap` (ไม่มี argument)
+
+1. **1 bash call**:
+   ```bash
+   H=~/.claude/skills/forward/scripts/handoffs.py
+   python3 $H list            # (+ --stream S / --all ตาม argument)
+   ```
+2. Verify งาน **ที่อายุ ≤ 7 วัน หรือ status=open** (สูงสุด ~6 งาน) ใน bash call เดียว:
+   ```bash
+   for k in rm12345 rm23456; do python3 $H verify $k; done
+   ```
+   (`verify` = git branch/uncommitted/ahead ของ repo ใน frontmatter + สถานะ Redmine ผ่าน API)
+3. แสดงผลเป็นตารางจัดกลุ่มตาม stream:
+   ```
+   ## 📋 งานค้าง (จาก /forward)
+   ### grouplife
+   | RM | งาน | status | อายุ | Redmine | git | next |
+   |---|---|---|---|---|---|---|
+   | #12345 | แก้ไขการนำเข้าไฟล์ OGL_App | open | 3d | In Progress | ticket/44 (3 uncommitted) | ถามผลทดสอบ Phase 3 |
+   ```
+   - `legacy` = handoff รุ่นเก่าไม่มี frontmatter (stream เดาจาก keyword) → ใส่ ⚠️ unverified ถ้า verify ไม่ได้
+   - Redmine = Closed/Resolved แต่ handoff ยัง open → ขึ้นเตือน "น่าจะปิดได้" + เสนอ `handoffs.py close <key>` (**ถามก่อน** ไม่ปิดเอง)
+   - branch ไม่ตรงกับ handoff / repo path หาย → เตือน
+4. ปิดท้ายด้วยคำถาม (AskUserQuestion ถ้างาน ≤ 4, ไม่งั้นให้พิมพ์เลข RM): "จะทำงานไหนต่อ?"
+   แล้วทำขั้นตอน B กับงานที่เลือก
+
+### B. `/recap <RM|key>` — โหลดงานเดียว
+
+1. `python3 $H show <key>` → Read ไฟล์ handoff นั้นทั้งไฟล์ (+ `history <key>` ถ้าต้องดูย้อนหลัง)
+2. `python3 $H verify <key>` + ตรวจ pending แต่ละข้อกับของจริงตาม "Verify Before Reporting" ด้านล่าง
+   (เช่น FormEdit.txt มี phase นั้นแล้วหรือยัง, SQL script รันแล้วหรือยัง, commit อยู่บน origin หรือยัง, deploy revision)
+3. โหลด memory ที่ handoff อ้างถึงใน "Rules / Gotchas" (อ่านไฟล์ memory นั้น) — ต้องทำตามกฎนั้นตลอดงาน
+4. แสดง:
+   ```
+   ## ▶ ทำต่อ: RM #12345 — <title>  (stream: grouplife)
+   📡 Session เดิม: <uuid8> — `claude --resume <uuid>` ถ้าต้องการ context เต็ม
+   **ทำไปแล้ว**: 2-4 บรรทัด
+   **สถานะจริงตอนนี้**: git / Redmine / env
+   | Pending | handoff บอก | ของจริง |
+   **ขั้นต่อไป**: (จาก Next Session ข้อแรก)
+   ⚠️ กฎของงานนี้: ...
+   ```
+5. **หยุดถาม** ก่อนลงมือ — การ /recap ไม่ใช่การอนุมัติให้เขียนโค้ด/commit/deploy
+   (งาน grouplife ต้องได้คำว่า "เริ่ม" ต่อ phase ตามกฎ phase-by-phase approval ถ้ามี)
+
+### เมื่องานจบระหว่าง session
+
+บอกผู้ใช้ว่ารัน `/forward --close <key>` ได้ (หรือถามแล้วรัน `handoffs.py close <key>` ให้)
+
+---
 
 **Goal**: Orient yourself fast. Rich context by default. Mid-session awareness with `--now`.
 
 ## Usage
 
 ```
-/recap           # Rich: retro summary, handoff, tracks, git
+/recap --rich    # Rich: retro summary, handoff, tracks, git (ψ ของ repo)
 /recap --quick   # Minimal: git + focus only, no file reads
 /recap --now     # Mid-session: timeline + jumps from AI memory
 /recap --now deep # Mid-session: + handoff + tracks + connections
@@ -22,7 +87,7 @@ trigger: /recap
 
 ---
 
-## DEFAULT MODE (Rich)
+## RICH MODE (`/recap --rich`, เดิมคือ default)
 
 **Run the rich script, then add suggestions:**
 
@@ -135,7 +200,7 @@ Script outputs git status + focus state (~0.1s). Then LLM adds:
 
 ## Hard Rules
 
-1. **ONE bash call** — never multiple parallel calls (adds latency)
+1. **Minimal bash calls** — list 1 call + verify 1 call (loop) ใน Handoff Mode; Rich/Quick mode ใช้ 1 call
 2. **No subagents** — everything in main agent
 3. **Ask, don't suggest** — "What next?" not "You should..."
 4. **Verify pending before reporting** — see "Verify Before Reporting" section below. This is NON-NEGOTIABLE.
