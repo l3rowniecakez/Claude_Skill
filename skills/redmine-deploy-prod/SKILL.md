@@ -380,15 +380,18 @@ called this skill** — i.e. the current API user's `id` from Step 7, **not** `2
 
 ```bash
 curl -s -X POST -H "X-Redmine-API-Key: <key>" -H "Content-Type: application/json" \
-  -d '{"issue":{"project_id":<project_id>,"tracker_id":<tracker_id>,"parent_issue_id":<new_rm_id>,"assigned_to_id":<current_user_id>,"subject":"01-Email ขออนุมัตินำขึ้น PROD"}}' \
+  -d '{"issue":{"project_id":<project_id>,"tracker_id":<tracker_id>,"parent_issue_id":<new_rm_id>,"assigned_to_id":<current_user_id>,"subject":"01-Email ขออนุมัตินำขึ้น PROD","custom_fields":[{"id":13,"value":"Production"}]}}' \
   "https://redmine.ochi.link/issues.json"
 
 curl -s -X POST -H "X-Redmine-API-Key: <key>" -H "Content-Type: application/json" \
-  -d '{"issue":{"project_id":<project_id>,"tracker_id":<tracker_id>,"parent_issue_id":<new_rm_id>,"assigned_to_id":<current_user_id>,"subject":"02-แนบผล UAT"}}' \
+  -d '{"issue":{"project_id":<project_id>,"tracker_id":<tracker_id>,"parent_issue_id":<new_rm_id>,"assigned_to_id":<current_user_id>,"subject":"02-แนบผล UAT","custom_fields":[{"id":13,"value":"Production"}]}}' \
   "https://redmine.ochi.link/issues.json"
 ```
 
-Use the same `project_id`/`tracker_id` as the parent RM (Steps 1–2). If either call
+Use the same `project_id`/`tracker_id` as the parent RM (Steps 1–2). **The `custom_fields`
+Environment value is required on these subtasks too** — the `Deployment` tracker rejects
+a create with `"Environment cannot be blank"` (422) if it's left off, even for a subtask
+that's just an internal checklist item, not a real per-environment record. If either call
 returns an `errors` field or a non-2xx status, show the raw error to the user — don't
 silently retry or guess a fix. These two subject strings are fixed, exactly as shown —
 don't ask the user to customize them.
