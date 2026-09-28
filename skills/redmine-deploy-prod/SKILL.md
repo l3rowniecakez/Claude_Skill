@@ -201,6 +201,14 @@ e.g. `GroupLifeInsuranceSystem_Operation/trunk` + `OGL_Operation` + `2.198.2-RC`
 `GroupLifeInsuranceSystem_Operation/trunk/OGL_Operation/2.198.2-RC`. Show the derived
 value to the user to confirm rather than asking it as a fully separate question.
 
+8. **Deploy Path (ปลายทาง)** — the production deploy destination folder, needed for the
+   Checklist Sheet's "Deploy Path (ปลายทาง)" column (Step 6). Past RMs across different
+   Apps (`OGL_Operation`, `OGL_Premium`, `OGL_Sale`) have all used the same shared path
+   `\\10.40.99.40\GroupLife_System\Operation_Program` — offer that as the likely default
+   but confirm with the user rather than assuming it silently, since a future App could
+   genuinely differ. Don't skip this question even though it's not part of the RM
+   description template — it's only written into the Checklist Sheet, not the RM itself.
+
 ---
 
 ## Step 5 — Ask about DB Scripts
@@ -243,10 +251,54 @@ Ask whether this deploy round includes any DB scripts.
    [this Drive folder](https://drive.google.com/drive/folders/1vL03-7XfAFwqTafKXJUNIZ_K9LKOR-o0)
    using the Google Drive tools available in this session.
 2. Copy the [master template Sheet](https://docs.google.com/spreadsheets/d/1QDBLj2hK0DqYHEMk3GezV83Gl0JeCPIRsAYBO3owoUI)
-   into that subfolder, named after this App/deploy (e.g. `OGL_Operation 2026-09-28`).
-3. Confirm the new Sheet's URL with the user before using it as the `[Sheet Checklist]`
-   link, and fill its "2.Run Script" section with the DB script list from Step 5 if
-   there are any.
+   into that subfolder. **Title it exactly per the master's own filename convention**
+   (the master template's title *is* the pattern, read it literally rather than
+   inventing a different scheme):
+   ```
+   <วันที่สร้างไฟล์ YYYYMMDD>_Deploy_<เลข RM ที่ครอบคลุม e.g. #12345, #12346>
+   ```
+   `<วันที่สร้างไฟล์>` is **today's actual date** (when this Sheet is created), not the
+   scheduled Deploy date from Step 4. `<เลข RM ที่ครอบคลุม>` is the covered Defect/UR RM
+   number(s) — the same ones that go into Section 4 Redmine Ref (Step 6 below) — **not**
+   the Deploy Production RM's own number (that doesn't exist yet at this point in the
+   flow; see the `ITD` cell note below). A title like `OGL_SALE 2026-09-30` (App name +
+   deploy date) is **wrong** — don't invent a variant, copy the master's own title
+   pattern verbatim with the placeholders substituted.
+3. **The copy only duplicates structure — every `<...>` placeholder in it is still
+   literal placeholder text until you fill it in.** Copying the file is not enough; you
+   must write the real values into these cells before treating the Sheet as done. The
+   `mcp__claude_ai_Google_Drive__*` tools only cover file metadata (title/parentId/copy)
+   and **cannot write cell content** — use the Sheets API write path from the
+   `reference-claude-google-access-oauth` memory instead (`~/.config/claude-google-access/`
+   OAuth token; `sys.path.insert(..., "~/.config/claude-google-access")`,
+   `from read_sheet import get_service`, then
+   `service.spreadsheets().values().batchUpdate(...)` with `valueInputOption="USER_ENTERED"`
+   — same path Step B2s below uses). **Check that memory before ever telling the user
+   Sheet cell-writes aren't possible** — the Drive tools' lack of a cell-write call does
+   not mean this skill has no way to write cells.
+   In the `Deployment CheckList` sheet/tab, on the header block (around rows 3-6) and the
+   `1.Deploy Program` table (around row 22-23, one row per program in Section 1, same
+   order):
+   - `Name` cell → the covered Defect/UR RM number(s), e.g. `#12345`
+   - `Jira / KPI` cell → the matching Redmine URL(s), e.g.
+     `https://redmine.ochi.link/issues/12345`
+   - `Program` cell → `<App>`
+   - `ITD` cell → `Deployment #<new_rm_id>` — **this Deploy Production RM's own number
+     doesn't exist yet at this point** (Step 9 hasn't run). Leave a clear placeholder here
+     for now (e.g. `Deployment #<รอสร้าง RM Deploy Production>`) and **come back and fill
+     in the real `Deployment #<new_rm_id>` right after Step 9 succeeds** — don't forget
+     this follow-up write, it's easy to leave stale since it happens out of sequence.
+   - Program table row → `Program Name` = `<App>`, `Program Path` = `<PROGRAM_PATH>`,
+     `Full Commit Hash` = `<COMMIT_HASH>` (full, untruncated), `Approved Tag` =
+     `<APPROVED_TAG>`, `Deploy Path (ปลายทาง)` = the value from Step 4's new question 8
+     (don't leave this column as the placeholder — it's a real required field, not
+     optional decoration)
+   Read the actual current cell values first (`values().get`) to find the exact row/column
+   for this deploy's copy before writing — don't assume the row numbers above never shift
+   between master-template revisions.
+4. Confirm the new Sheet's URL and the values just written with the user before using it
+   as the `[Sheet Checklist]` link, and fill its "2.Run Script" section with the DB script
+   list from Step 5 if there are any.
 
 **Redmine Ref.**: ask the user for the related Defect/UR RM number(s) this deploy covers
 (fetch each one's subject via `GET /issues/<id>.json` to build the
@@ -300,7 +352,21 @@ curl -s -X POST -H "X-Redmine-API-Key: <key>" -H "Content-Type: application/json
 
 If the response has an `errors` field or a non-2xx status, stop and show the raw error to
 the user instead of silently retrying or guessing a fix. Capture the returned `id` as
-`<new_rm_id>` — needed by Step 9b.
+`<new_rm_id>` — needed by Step 9b, and by Step 9c right below.
+
+---
+
+## Step 9c — Fill in the Checklist Sheet's `ITD` cell (new-RM path only, once)
+
+Immediately after Step 9 succeeds, go back to the Checklist Sheet created in Step 6 and
+replace its `ITD` cell placeholder with the real value now that `<new_rm_id>` exists:
+```
+Deployment #<new_rm_id>
+```
+Same Sheets API write path as Step 6 (the `reference-claude-google-access-oauth` OAuth
+token — never the `mcp__claude_ai_Google_Drive__*` tools, they can't write cells). This is
+the one cell in the Sheet that genuinely cannot be filled before the RM exists — don't
+skip coming back for it once it does.
 
 ---
 
