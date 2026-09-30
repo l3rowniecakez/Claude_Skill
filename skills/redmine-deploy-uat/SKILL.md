@@ -80,7 +80,7 @@ The Master Pattern is:
 
 **Description:**
 ```
-เรียน it admin
+เรียน IT Deploy
 
 ขอตัด version software SQL จำนวน 1 โปรแกรม ดังนี้
 
@@ -95,10 +95,14 @@ The Master Pattern is:
 | **RELEASE_VERSION** | |
 | **APPROVED_TAG** | |
 
-ขอบคุณครับ
+ขอบคุณครับ/ค่ะ
 
 #ai-work
 ```
+
+**Multiple programs in one RM:** if the user wants to cut more than one program, keep ONE RM, ONE greeting, ONE footer. Change `จำนวน 1 โปรแกรม` to the real count (e.g. `จำนวน 2 โปรแกรม`), repeat only the numbered table block (`| 2. | โปรแกรม <App2>.exe |` … `APPROVED_TAG`) once per program separated by a blank line, and put `ขอบคุณครับ/ค่ะ` + `#ai-work` exactly once after the LAST program block. Never repeat the footer per program, and use the subject `แจ้งตัด version เพื่อ Deploy UAT (<N> โปรแกรม)`.
+
+**Footer rule:** the description must end with exactly ONE footer — `ขอบคุณครับ/ค่ะ`, blank line, `#ai-work` (with the hyphen, never `#aiwork`). The template above already contains it, so never append another `ขอบคุณครับ`/`#ai-work` after filling in the template.
 
 `RELEASE_VERSION` and `APPROVED_TAG` stay **blank** — they get filled in later by the
 release team's reply, never at creation time.
@@ -125,7 +129,7 @@ So is **Due Date** — always **today's date** (the date the RM is created, `due
 
 If the RM covers more than one Defect/UR (like a precedent ticket's `*(ครอบคลุม Defect #12345,
 #12346)*` line), ask whether to add that line and which issue numbers, and append it
-right after the table, before "ขอบคุณครับ".
+right after the table, before "ขอบคุณครับ/ค่ะ".
 
 ---
 

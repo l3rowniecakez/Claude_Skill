@@ -94,7 +94,7 @@ Deploy Production (<App>)
 
 **Description** (Markdown/textile — Redmine renders this as-is):
 ```
-# เรียนทีม IT-Deploy
+เรียน IT Deploy
 
 <div style="background-color:#fff3cd;border-left:4px solid #f7982c;padding-left:12px;padding-top:8px;padding-bottom:8px">
 <strong>📌 ขอแจ้ง Deploy Production ในวันที่ <วันที่ Deploy> เวลา 20.00 - 24.00 น.</strong>
@@ -154,7 +154,7 @@ Deploy Production (<App>)
 
 📍 กรณีติดปัญหาติดต่อ **<ชื่อคนเปิด RM>**
 
-ขอบคุณครับ
+ขอบคุณครับ/ค่ะ
 
 #ai-work
 ```
@@ -320,6 +320,8 @@ a different on-call contact for this particular deploy. Keep this response's `id
 too — it's reused as the subtask assignee in **Step 9b**, no need to fetch it twice.
 
 ---
+
+**Footer rule:** the description must end with exactly ONE footer — `ขอบคุณครับ/ค่ะ`, blank line, `#ai-work` (with the hyphen, never `#aiwork`). The template above already contains it, so never append another `ขอบคุณครับ`/`#ai-work` after filling in the template.
 
 ## Step 8 — Confirm before creating (hard gate)
 
