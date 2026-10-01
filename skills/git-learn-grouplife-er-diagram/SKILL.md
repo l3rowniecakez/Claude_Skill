@@ -34,7 +34,8 @@ DB login อยู่ที่ `~/.config/grouplife-db/credentials.json` (SIT `.
   ห้าม INSERT/UPDATE/DELETE, ห้ามยิง ad-hoc query แปลก ๆ ตาม `feedback-no-adhoc-queries`. ไม่แนะนำให้อ่านไฟล์
   Doc/db-schema — ให้ดูจาก DB `.52` สด ๆ ตาม `feedback-no-read-dbschema-docs-use-db52`
 - **เขียนได้เฉพาะ**: (1) แทรกคอลัมน์ "ER-Diagram" ใน Menu Contents (2) tab `[ER] ...` (3) ลิงก์ใน cell ER-Diagram
-  ของแถวเมนูนั้น (4) วันที่ B4 (5) ไฟล์ PNG ใน `ER-Picture` ของ repo. **ห้ามแก้** tab วิเคราะห์เมนูเดิม, ห้ามแตะไฟล์ Template `1wI9_Q-Zw50vLMNbtozKhCpb7ebsLYtmyHUC_1gBnLnY`
+  ของแถวเมนูนั้น (4) วันที่ B4 (5) ไฟล์ PNG ใน `ER-Picture` ของ repo (6) **cell "ER-Diagram" ของแถวที่ Sheet ต้นทางที่ชี้มายัง App นี้** (เฉพาะ cell นั้น — ดู Phase 4.5).
+  **ห้ามแก้** tab วิเคราะห์เมนูเดิม, ห้ามแตะไฟล์ Template `1wI9_Q-Zw50vLMNbtozKhCpb7ebsLYtmyHUC_1gBnLnY`
   (มันเป็นแค่ตัวอย่างหน้าตาคอลัมน์ ER-Diagram) — ผู้ใช้เคยตอกย้ำเรื่องไม่แก้ scope อื่น `feedback-no-unrelated-scope-edits`
 - **เมนูเดิมที่เคยทำ ER แล้ว = UPDATE tab เดิม + cell เดิม** ห้ามสร้าง tab ซ้ำ (`er_write.py` บังคับเอง: ดู gid ใน cell
   ER-Diagram ก่อน แล้วค่อยดูชื่อ tab) — ต้องส่ง `breadcrumb` ให้ตรงกับคอลัมน์ "เมนูงาน" เป๊ะทุกตัวอักษร
@@ -179,9 +180,30 @@ anyone-with-link). ทดสอบแล้ว 2026-09-30 ด้วย Sheet ท
 ถ้าไม่ต้องการรูป ใส่ `"no_image": true` ใน payload จะได้กล่องแบบเซลล์เดิม (ไม่แนะนำ). ดู PNG ก่อนเขียนได้ด้วย
 `$PY $S/er_render.py payload.json out.png`
 
+## Phase 4.5 — แปะลิงก์ ER กลับที่ Sheet ต้นทาง (เพิ่ม 2026-10-01 ตามฟีดแบ็กผู้ใช้)
+
+**เมื่อไหร่**: App ที่เพิ่งทำ ER เป็น **โปรแกรมภายนอกที่ถูกเรียกด้วย WinExec จาก App อื่น** (ต้นทาง เช่น OGL_Benefits) ซึ่ง
+`/git-learn-grouplife-system-analyst` ได้ "stamp" แถวหนึ่งไว้ใน Menu Contents ของต้นทางแล้ว โดยคอลัมน์ `Sheet URL` ของแถวนั้นชี้ไปยัง
+spreadsheet/tab ของ App ปลายทาง (คอลัมน์ Delphi Path File ขึ้นต้นด้วย `WinExec ->`). แถวแบบนี้ไม่มี tab รายละเอียดในไฟล์ต้นทาง
+ถ้าไม่แปะลิงก์ ER กลับ คนที่เปิดสารบัญของต้นทางจะเห็นช่อง ER-Diagram ว่าง ทั้งที่ ER อยู่อีกไฟล์ — **ทำทุกครั้งหลัง `er_write.py` ของ App ปลายทาง
+สำเร็จ** (ผู้ใช้สั่งให้เป็นแนวทางเดียวกันสำหรับทุกคนที่เรียก skill นี้)
+
+```bash
+$PY $S/er_stamp_origin.py <origin_spreadsheet_id> <app_spreadsheet_id> [--dry]
+```
+- `<origin_spreadsheet_id>` = spreadsheet ของ App ต้นทางที่เรียก exe นี้ (ถ้าไม่ทราบให้ถามผู้ใช้ หรือหาจาก Menu Contents ที่มีแถว `WinExec -> <exe>`
+  ของ App ที่เป็นเมนูหลักอย่าง OGL_Benefits ด้วย `find_app_sheet.py`) — ห้ามเดา; `<app_spreadsheet_id>` = spreadsheet ที่เพิ่งเขียน ER
+- สคริปต์จับคู่แถวต้นทางด้วย **ลิงก์ `Sheet URL` ที่มี `/d/<app_spreadsheet_id>/`** (ไม่เดาจากชื่อ exe) แล้วเขียน**เฉพาะ cell ER-Diagram ของแถวเหล่านั้น**
+  ด้วยรูปแบบเดียวกับ er_write.py (ข้อความ URL + hyperlink). exe เดียวถูกเรียกจากหลายเมนูได้ (หลายแถว) — จะแปะทุกแถว
+- เขียนทับเฉพาะเมื่อค่าต่างจากเดิม: `er_write.py` สร้าง tab `[ER]` ใหม่ทุกครั้ง gid จึงเปลี่ยน ลิงก์เก่าจะเสีย → **รันซ้ำหลังทุกครั้งที่ทำ ER ซ้ำ**
+- ถ้าต้นทางยังไม่มีคอลัมน์ ER-Diagram สคริปต์แทรกให้เอง; ถ้า App ปลายทางยังไม่มี ER หรือไม่มีแถวต้นทางชี้มา จะบอกตรง ๆ และไม่เขียนอะไร
+- ต้นทางหลายไฟล์ (App หลายตัวเรียก exe เดียวกัน): รันสคริปต์ทีละต้นทาง; ห้ามรันขนานกับไฟล์ต้นทางเดียวกัน
+- ไม่ต้องทำขั้นนี้ถ้า App ที่ทำ ER เป็นโปรแกรมหลักเอง (ER ของเมนูภายในไฟล์เดียวกัน er_write.py ผูกลิงก์ที่แถวเมนูให้แล้ว)
+
 ## Phase 5 — สรุปให้ผู้ใช้
 
 - ลิงก์ Menu Contents ของ App + ลิงก์ tab `[ER] ...` + ลิงก์ไฟล์รูปใน `ER-Picture` ของแต่ละเมนู (และบอกว่าแทรกคอลัมน์ ER-Diagram ใหม่หรือ update ทับ)
+- ถ้ามี Phase 4.5: บอกว่าแปะลิงก์กลับที่ Sheet ต้นทางตัวไหน กี่แถว (เลขแถว) หรือเพราะอะไรจึงข้าม
 - ต่อเมนู สรุป 2–4 บรรทัด: Table หลักที่ใช้เก็บข้อมูล + ความสัมพันธ์เด่น ๆ (เช่น "OGL_AgentBrokerHD 1:N …")
 - ระบุตรง ๆ: relationship ไหนเป็น `inferred`, Store/View ไหนอ่านไม่ครบ, Table ไหนหาไม่เจอ — **ห้ามอ้างครบถ้ายังไม่ครบ**
 - ไม่ต้อง commit/push อะไร (skill นี้ไม่เกี่ยวกับ git)

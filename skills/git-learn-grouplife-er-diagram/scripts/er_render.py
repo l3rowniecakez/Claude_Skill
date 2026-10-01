@@ -8,7 +8,7 @@ children (it is `to`) go right; others are placed relative to whoever they attac
 starts/ends on the row of the FK/PK column it joins (elbow connector) with crow's-foot end marks:
   1 = ||   0..1 = o|   1..N = |<   0..N = o<
 """
-import sys, os, json
+import sys, os, re, json
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     _s.reconfigure(encoding="utf-8")   # Thai text on Windows consoles (cp874/cp1252)
 from PIL import Image, ImageDraw, ImageFont
@@ -104,6 +104,7 @@ def main():
 
     def rowy(n, colname):
         x, y = pos[n]
+        colname = re.split(r"[,+]", colname)[0].strip()      # composite key "DocNo, ItemNo" / "A+B" -> anchor on the first column
         for i, c in enumerate(by[n]["columns"]):
             if c["name"] == colname:
                 return y + HEAD_H + PAD + i * ROW_H + ROW_H / 2
