@@ -24,6 +24,8 @@ skill only creates the issue — it never runs the actual deploy, never touches 
 never marks any checklist row "Ready" itself (those get updated later, by hand, as the
 real deploy actually gets checked off).
 
+**Template editing rule (hard rule):** edit ONLY the text wrapped in `<...>` — replace the whole token, including the `<` and `>` characters, with the real value. Everything outside `<...>` (wording, headings, emoji, tables, links, fixed values such as `ENVIRONMENT`, warnings) must stay identical to the Master Pattern, character for character. Never add, delete, reword or reformat it unless this skill explicitly says so (e.g. the program count when there are multiple programs).
+
 Redmine access: see the `reference-redmine-api-key` memory (`X-Redmine-API-Key` header,
 `https://redmine.ochi.link`).
 
@@ -423,6 +425,8 @@ exactly once, at Path A's Step 9b, when the RM itself was first opened. This pat
 edits the existing RM's description via `PUT`. It doesn't touch the existing RM's
 subject, Assignee, Environment, Due Date, DB Script section, Checklist Sheet link, or the
 bottom Include/Ready table — those stay exactly as they are.
+
+Template editing rule applies here too: touch only the `<...>` values / the fields named below; everything else in the description stays byte-identical.
 
 Two different situations land here, split at **Step B1b**:
 - **The App is already listed** in Section 1 (e.g. a small fix got re-cut with a new

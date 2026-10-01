@@ -23,6 +23,8 @@ never runs the actual deploy, and never fills in `RELEASE_VERSION`/`APPROVED_TAG
 are filled in later by the release team once they reply, same as in the master pattern
 and its precedents).
 
+**Template editing rule (hard rule):** edit ONLY the text wrapped in `<...>` — replace the whole token, including the `<` and `>` characters, with the real value. Everything outside `<...>` (wording, headings, emoji, tables, links, fixed values such as `ENVIRONMENT`, warnings) must stay identical to the Master Pattern, character for character. Never add, delete, reword or reformat it unless this skill explicitly says so (e.g. the program count when there are multiple programs).
+
 Redmine access: see the `reference-redmine-api-key` memory (`X-Redmine-API-Key` header,
 `https://redmine.ochi.link`).
 
