@@ -1,7 +1,7 @@
 ---
 installer: create-shortcut
 name: redmine-deploy-prod
-description: 'Create a new Redmine RM notifying IT Deploy team of App details to prepare a Production deploy, OR add another program + Redmine Ref to an existing Deploy Production RM — always asks first which of the two this call is. New-RM path copies its Master Pattern exactly (Assignee always IT Application Admin, Environment always Production/PROD; Due Date is the actual scheduled Deploy date, not the RM creation date), asking which RM number it should be a subtask of, then asking each unknown template variable one at a time (App name, REPOSITORY, COMMIT_HASH, PROGRAM_PATH, DPR_FILE, RELEASE_VERSION, deploy date, DB scripts, checklist sheet, Redmine refs, contact person). New-RM path also opens two fixed subtasks once (assigned to whoever called the skill, not IT Application Admin) — "01-Email ขออนุมัตินำขึ้น PROD" and "02-แนบผล UAT" — never repeated on later calls. Existing-RM path asks the existing RMs number, then checks if the named App is already listed in Section 1: if it IS, updates ONLY that program's COMMIT_HASH, RELEASE_VERSION, and (re-derived) APPROVED_TAG in both the RM description AND the linked Checklist Sheet's "Full Commit Hash"/"Approved Tag" columns (REPOSITORY/PROGRAM_PATH/DPR_FILE untouched); if it's a genuinely new App, appends a new numbered program block to Section 1 and new bullet(s) to Section 4 Redmine Ref. Never re-creates the two approval subtasks on this path. Always ends by giving the RM link to check. Use when user says "/redmine-deploy-prod" or wants to แจ้ง Deploy Production ให้ IT Deploy.'
+description: 'Create a new Redmine RM notifying IT Deploy team of App details to prepare a Production deploy, OR add another program + Redmine Ref to an existing Deploy Production RM — always asks first which of the two this call is. Each program is either Delphi .exe (default, unchanged) or Web App (e.g. bot-web-register/bot-web-admin — lighter table, no DPR_FILE row, no .exe suffix, different APPROVED_TAG formula). New-RM path copies its Master Pattern exactly (Assignee always IT Application Admin, Environment always Production/PROD; Due Date is the actual scheduled Deploy date, not the RM creation date), asking which RM number it should be a subtask of, then asking the App type before asking each unknown template variable one at a time (App name, REPOSITORY, COMMIT_HASH, PROGRAM_PATH, DPR_FILE if Delphi, RELEASE_VERSION, deploy date, DB scripts, checklist sheet, Redmine refs, contact person). New-RM path also opens two fixed subtasks once (assigned to whoever called the skill, not IT Application Admin) — "01-Email ขออนุมัตินำขึ้น PROD" and "02-แนบผล UAT" — never repeated on later calls. Existing-RM path asks the existing RMs number, then checks if the named App is already listed in Section 1: if it IS, updates ONLY that program's COMMIT_HASH, RELEASE_VERSION, and (re-derived) APPROVED_TAG in both the RM description AND the linked Checklist Sheet's "Full Commit Hash"/"Approved Tag" columns (REPOSITORY/PROGRAM_PATH/DPR_FILE untouched); if it's a genuinely new App, asks its type then appends a new numbered program block to Section 1 and new bullet(s) to Section 4 Redmine Ref. Never re-creates the two approval subtasks on this path. Always ends by giving the RM link to check. Use when user says "/redmine-deploy-prod" or wants to แจ้ง Deploy Production ให้ IT Deploy.'
 created_at: 2026-09-28T00:00:00+07:00
 argument-hint: "[parent-redmine-issue-number]"
 ---
@@ -89,6 +89,16 @@ as its master pattern) — never ask the user for this, never vary it.
 
 ## Step 3 — The Master Pattern
 
+The Master Pattern below is for a **Delphi `.exe`** program — the default, and it **must
+keep working exactly as documented, unchanged, with no exceptions**. This skill also
+supports a second, lighter program type — **Web App** (e.g. `bot-web-register`,
+`bot-web-admin` — confirmed in practice via a precedent ticket on the companion
+`/redmine-deploy-uat` skill): same overall pattern, but no `.exe` suffix on `PROGRAM_NAME`,
+no `DPR_FILE` row, and a different `APPROVED_TAG` formula (Step 4). The Web branch is
+purely additive — it never changes how the Delphi branch behaves. **Ask the App's type
+per program, before asking any of its detail variables** (Step 4) — "โปรแกรมนี้เป็น Delphi
+.exe หรือ Web App?" — each program in a multi-program RM picks its own type independently.
+
 **Subject:**
 ```
 Deploy Production (<App>)
@@ -108,6 +118,8 @@ Deploy Production (<App>)
 
 ### 1️⃣ 📋 รายละเอียดโปรแกรม
 
+**Delphi `.exe` program block (default — unchanged):**
+```
 | 1. | โปรแกรม <App> |
 | --- | --- |
 | **PROGRAM_NAME** | `<App>.exe` |
@@ -118,6 +130,24 @@ Deploy Production (<App>)
 | **ENVIRONMENT** | `PROD` |
 | **RELEASE_VERSION** | `<RELEASE_VERSION>` |
 | **APPROVED_TAG** | `<APPROVED_TAG>` |
+```
+
+**Web App program block (new branch — no `.exe`, no `DPR_FILE` row):**
+```
+| 1. | โปรแกรม <App> |
+| --- | --- |
+| **PROGRAM_NAME** | `<App>` |
+| **REPOSITORY** | `<REPOSITORY>` |
+| **COMMIT_HASH** | `<COMMIT_HASH>` |
+| **PROGRAM_PATH** | `<PROGRAM_PATH>` |
+| **ENVIRONMENT** | `PROD` |
+| **RELEASE_VERSION** | `<RELEASE_VERSION>` |
+| **APPROVED_TAG** | `<APPROVED_TAG>` |
+```
+(Drop the `DPR_FILE` row entirely for a Web App program — don't leave it blank or `N/A`.)
+
+In a multi-program RM, each numbered block uses whichever shape matches that program's own
+type — a Delphi block and a Web App block can sit side by side under the same `1️⃣` section.
 
 ---
 
@@ -171,19 +201,30 @@ those get updated later by hand as the real deploy actually gets checked off.
 ## Step 4 — Ask each program-detail variable, one at a time
 
 Ask **one question at a time** (don't dump them all as one form) — skip a question only
-if the user already supplied that value unprompted earlier in the conversation:
+if the user already supplied that value unprompted earlier in the conversation. Questions
+2, 3, 6, and 7 are identical regardless of type; questions 1, 4, 5 and the `APPROVED_TAG`
+derivation branch on the App type asked in Step 3.
 
-1. **App name** (e.g. `OGL_Operation`, `OGL_Sale`) — used in the subject, the table
-   header, and as the base of `PROGRAM_NAME`. Confirm the derived `PROGRAM_NAME`
-   (`<App>.exe`) with the user rather than asking it fully separately.
-2. **REPOSITORY** (e.g. `delphi/groupwork-system-2016.git`)
+1. **App name** (e.g. `OGL_Operation`, `OGL_Sale` for Delphi; `bot-web-register`,
+   `bot-web-admin` for Web App) — used in the subject and the table header either way.
+   - **Delphi**: used as the base of `PROGRAM_NAME` — confirm the derived `PROGRAM_NAME`
+     (`<App>.exe`) with the user rather than asking it fully separately.
+   - **Web App**: `PROGRAM_NAME` is the App name itself, **no `.exe` suffix** — confirm
+     that with the user rather than asking it fully separately.
+2. **REPOSITORY** (e.g. `delphi/groupwork-system-2016.git` for Delphi, `bot-web-register.git`
+   for Web App)
 3. **COMMIT_HASH** (the commit being deployed)
-4. **PROGRAM_PATH** — the Sub Folder path (e.g.
-   `GroupLifeInsuranceSystem_Operation/trunk`). If the user doesn't know it offhand,
-   suggest using `/git-clone-grouplife` or `/git-clone-grouplife-update` to look it up
-   from the tracking sheet's "Sub Folder" column for this App.
-5. **DPR_FILE** (e.g. `OGL_Operation.dpr`) — usually `<App>.dpr`; confirm rather than ask
-   fully separately if it follows that pattern.
+4. **PROGRAM_PATH**
+   - **Delphi**: the Sub Folder path (e.g. `GroupLifeInsuranceSystem_Operation/trunk`). If
+     the user doesn't know it offhand, suggest using `/git-clone-grouplife` or
+     `/git-clone-grouplife-update` to look it up from the tracking sheet's "Sub Folder"
+     column for this App.
+   - **Web App**: normally just the repo name itself (e.g. `bot-web-register`) — **not** a
+     Sub Folder from the Delphi grouplife tracking sheet (that sheet only covers Delphi
+     Apps). Confirm the value with the user rather than assuming it matches the App name.
+5. **DPR_FILE** — **Delphi only** (e.g. `OGL_Operation.dpr`, usually `<App>.dpr`; confirm
+   rather than ask fully separately if it follows that pattern). **Never asked for a Web
+   App program** — skip this question entirely, and the row doesn't exist in its table.
 6. **RELEASE_VERSION** — the RC number (e.g. `2.198.2-RC`). This normally comes from the
    corresponding "ตัด RC" ticket created earlier via `/redmine-deploy-uat` — ask the user
    for that RC number (or that ticket's number so you can look it up on Redmine if they
@@ -195,20 +236,31 @@ if the user already supplied that value unprompted earlier in the conversation:
    it to `YYYY-MM-DD` for the `due_date` field (e.g. `23/09/2026` → `2026-09-23`), don't
    use today's date.
 
-Once `PROGRAM_PATH`, `App`, and `RELEASE_VERSION` are known, **derive** `APPROVED_TAG` as:
-```
-<PROGRAM_PATH>/<App>/<RELEASE_VERSION>
-```
-e.g. `GroupLifeInsuranceSystem_Operation/trunk` + `OGL_Operation` + `2.198.2-RC` →
-`GroupLifeInsuranceSystem_Operation/trunk/OGL_Operation/2.198.2-RC`. Show the derived
-value to the user to confirm rather than asking it as a fully separate question.
+Once `RELEASE_VERSION` is known, **derive** `APPROVED_TAG` — the formula depends on type:
+- **Delphi**: `<PROGRAM_PATH>/<App>/<RELEASE_VERSION>`, e.g.
+  `GroupLifeInsuranceSystem_Operation/trunk` + `OGL_Operation` + `2.198.2-RC` →
+  `GroupLifeInsuranceSystem_Operation/trunk/OGL_Operation/2.198.2-RC`. (`PROGRAM_PATH` is a
+  folder, not the App itself, so the App name is a separate path segment.)
+- **Web App**: `<PROGRAM_PATH>/<RELEASE_VERSION>`, e.g. `bot-web-register` + `1.0.1-RC` →
+  `bot-web-register/1.0.1-RC`. (`PROGRAM_PATH` already **is** the App/repo name for a Web
+  App, so don't repeat the App name as a third segment — that would duplicate it, e.g.
+  `bot-web-register/bot-web-register/1.0.1-RC` is wrong.)
+
+Either way, show the derived value to the user to confirm rather than asking it as a fully
+separate question.
 
 8. **Deploy Path (ปลายทาง)** — the production deploy destination folder, needed for the
-   Checklist Sheet's "Deploy Path (ปลายทาง)" column (Step 6). Past RMs across different
-   Apps (`OGL_Operation`, `OGL_Premium`, `OGL_Sale`) have all used the same shared path
-   `\\10.40.99.40\GroupLife_System\Operation_Program` — offer that as the likely default
-   but confirm with the user rather than assuming it silently, since a future App could
-   genuinely differ. Don't skip this question even though it's not part of the RM
+   Checklist Sheet's "Deploy Path (ปลายทาง)" column (Step 6).
+   - **Delphi**: past RMs across different Apps (`OGL_Operation`, `OGL_Premium`,
+     `OGL_Sale`) have all used the same shared path
+     `\\10.40.99.40\GroupLife_System\Operation_Program` — offer that as the likely default
+     but confirm with the user rather than assuming it silently, since a future App could
+     genuinely differ.
+   - **Web App**: there's no established shared default yet (deploy destination for a web
+     app — e.g. a server path, container/registry target — is likely different in kind
+     from the Delphi file-share path above) — ask the user outright, don't offer the
+     Delphi default as a starting guess for this type.
+   Don't skip this question for either type even though it's not part of the RM
    description template — it's only written into the Checklist Sheet, not the RM itself.
 
 ---
@@ -451,7 +503,9 @@ Read its `description` and locate:
   program's `PROGRAM_NAME`/`REPOSITORY`/`COMMIT_HASH`/etc. rows. Note the **App name (and
   `PROGRAM_NAME`) of every existing block** — needed for the Step B1b match check — and
   the **highest** existing number `N` — the new block you add (if it comes to that) uses
-  `N + 1`.
+  `N + 1`. Also note each existing block's **type** — a block **with** a `DPR_FILE` row is
+  Delphi, a block **without** one is Web App — needed by Step B2s (that step doesn't ask
+  the type again, it reads it off the existing block).
 - **Section 4** (`### 4️⃣ 🔗 Redmine Ref.`) — a bullet list, ending right before the `---`
   that leads into the Include/Ready table.
 
@@ -474,15 +528,18 @@ Ask, one at a time:
    (same as Step 4/B2's question — normally comes from the corresponding `/redmine-deploy-uat`
    "ตัด RC" ticket).
 
-**Don't** ask `REPOSITORY`, `PROGRAM_PATH`, or `DPR_FILE` again — those stay exactly as
-already recorded in that program's existing block, unchanged. `PROGRAM_NAME` and
-`ENVIRONMENT` obviously don't change either.
+**Don't** ask `REPOSITORY`, `PROGRAM_PATH`, or (Delphi) `DPR_FILE` again — those stay
+exactly as already recorded in that program's existing block, unchanged. `PROGRAM_NAME`
+and `ENVIRONMENT` obviously don't change either. Don't ask the App type either — it's
+already fixed by whichever block this is (see Step B1's note on detecting it from the
+presence/absence of a `DPR_FILE` row).
 
-Re-derive `APPROVED_TAG` from that unchanged `PROGRAM_PATH`/`App` plus the **new**
-`RELEASE_VERSION`, same formula as Step 4:
-```
-<PROGRAM_PATH>/<App>/<RELEASE_VERSION>
-```
+Re-derive `APPROVED_TAG` from that unchanged `PROGRAM_PATH` (and, for Delphi, `App`) plus
+the **new** `RELEASE_VERSION`, using the type-specific formula from Step 4:
+- **Delphi**: `<PROGRAM_PATH>/<App>/<RELEASE_VERSION>`
+- **Web App**: `<PROGRAM_PATH>/<RELEASE_VERSION>` (no separate App segment — `PROGRAM_PATH`
+  already is the App/repo name)
+
 Show the derived value to the user to confirm rather than asking it as a separate
 question.
 
@@ -519,12 +576,17 @@ Skip Step B3 entirely and go straight to **Step B4** to confirm and apply the ch
 
 ## Step B2 — New-program path: ask each program-detail variable, one at a time
 
-Same questions as **Step 4** in Path A (App name → confirm `PROGRAM_NAME`, `REPOSITORY`,
-`COMMIT_HASH`, `PROGRAM_PATH`, `DPR_FILE`, `RELEASE_VERSION`), deriving `APPROVED_TAG` the
-same way. `ENVIRONMENT` is still always `PROD` — don't ask it. Skip the "Deploy date"
-question — that's already set on the existing RM and isn't repeated per program.
+First ask this program's type, same as Step 3 in Path A — "โปรแกรมนี้เป็น Delphi .exe หรือ
+Web App?" — then the same questions as **Step 4** in Path A (App name → confirm
+`PROGRAM_NAME`, `REPOSITORY`, `COMMIT_HASH`, `PROGRAM_PATH`, `DPR_FILE` if Delphi,
+`RELEASE_VERSION`), deriving `APPROVED_TAG` with the type-specific formula from Step 4.
+`ENVIRONMENT` is still always `PROD` — don't ask it. Skip the "Deploy date" question —
+that's already set on the existing RM and isn't repeated per program.
 
-Build the new block using the next number `N + 1` from Step B1:
+Build the new block using the next number `N + 1` from Step B1, in whichever shape matches
+this program's type:
+
+**Delphi `.exe`:**
 ```
 | <N+1>. | โปรแกรม <App> |
 | --- | --- |
@@ -537,6 +599,20 @@ Build the new block using the next number `N + 1` from Step B1:
 | **RELEASE_VERSION** | `<RELEASE_VERSION>` |
 | **APPROVED_TAG** | `<APPROVED_TAG>` |
 ```
+
+**Web App (no `.exe`, no `DPR_FILE` row):**
+```
+| <N+1>. | โปรแกรม <App> |
+| --- | --- |
+| **PROGRAM_NAME** | `<App>` |
+| **REPOSITORY** | `<REPOSITORY>` |
+| **COMMIT_HASH** | `<COMMIT_HASH>` |
+| **PROGRAM_PATH** | `<PROGRAM_PATH>` |
+| **ENVIRONMENT** | `PROD` |
+| **RELEASE_VERSION** | `<RELEASE_VERSION>` |
+| **APPROVED_TAG** | `<APPROVED_TAG>` |
+```
+
 Insert this new table directly after the last existing program block in Section 1, before
 that section's closing `---`.
 
@@ -600,9 +676,14 @@ note) or the program and Redmine Ref bullet(s) just added (Step B2/B3 path).
 
 - This skill never logs time and never posts follow-up notes — it only creates or updates
   the one RM. Use `/redmine-logtime` separately if the user wants to log time on this.
-- Never invent values for `REPOSITORY`, `COMMIT_HASH`, `PROGRAM_PATH`, `DPR_FILE`, or
-  `RELEASE_VERSION` — always get them from the user (or, for `PROGRAM_PATH`, from the
-  tracking sheet via `/git-clone-grouplife`), never guess from a similar-looking past RM.
+- Never invent values for `REPOSITORY`, `COMMIT_HASH`, `PROGRAM_PATH`, (Delphi only)
+  `DPR_FILE`, or `RELEASE_VERSION` — always get them from the user (or, for a Delphi
+  `PROGRAM_PATH`, from the tracking sheet via `/git-clone-grouplife`), never guess from a
+  similar-looking past RM.
+- App type (Delphi `.exe` vs Web App) is asked per program, every time a new program block
+  is created (Step 3 / Step B2) — never assumed from the App name or a past RM. On the
+  same-App update path (Step B2s) it is never asked again — read it off the existing
+  block instead (presence/absence of a `DPR_FILE` row, per Step B1).
 - Never mark any checklist row (or `พร้อมขึ้น Production`) as done at creation time, and
   never touch that table at all on the Path B (existing-RM) path — those reflect real
   verification that hasn't happened yet.

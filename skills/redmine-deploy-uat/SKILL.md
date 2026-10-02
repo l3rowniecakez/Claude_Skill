@@ -1,7 +1,7 @@
 ---
 installer: create-shortcut
 name: redmine-deploy-uat
-description: 'Create a new Redmine RM notifying IT Deploy of App details to prepare cutting a version (ตัด RC) — copies its Master Pattern exactly (Assignee always IT Application Admin, Environment always UAT, Due Date always today), asking which RM number it should be a subtask of, then asking each unknown template variable one at a time (App name, REPOSITORY, COMMIT_HASH, PROGRAM_PATH, DPR_FILE). Use when user says "/redmine-deploy-uat" or wants to แจ้งตัด RC / แจ้งตัด version ให้ IT Deploy.'
+description: 'Create a new Redmine RM notifying IT Deploy of App details to prepare cutting a version (ตัด RC) — copies its Master Pattern exactly (Assignee always IT Application Admin, Environment always UAT, Due Date always today), asking which RM number it should be a subtask of, then asking the App type (Delphi .exe, unchanged default — or Web App, e.g. bot-web-register/bot-web-admin, lighter table with no DPR_FILE row and no .exe suffix) before asking each unknown template variable one at a time (App name, REPOSITORY, COMMIT_HASH, PROGRAM_PATH, and DPR_FILE for Delphi only). Use when user says "/redmine-deploy-uat" or wants to แจ้งตัด RC / แจ้งตัด version ให้ IT Deploy.'
 created_at: 2026-09-28T00:00:00+07:00
 argument-hint: "[parent-redmine-issue-number]"
 ---
@@ -73,12 +73,25 @@ the user for a replacement.
 
 ## Step 3 — Ask each template variable, one at a time
 
-The Master Pattern is:
+The Master Pattern covers **Delphi `.exe`** programs — this is the default and **must keep
+working exactly as documented below, unchanged, with no exceptions**. This skill also
+supports a second, lighter program type — **Web App** (e.g. `bot-web-register`,
+`bot-web-admin` — confirmed in practice via a precedent ticket): same overall pattern, but
+no `.exe` suffix anywhere and no `DPR_FILE` row at all (that field is Delphi-specific and
+simply doesn't exist for a web app). The Web branch is purely additive — it never changes
+how the Delphi branch behaves.
 
-**Subject:**
+**Ask per program, before anything else**: "โปรแกรมนี้เป็น Delphi .exe หรือ Web App?" — one
+program, one answer. If the RM covers several programs, each one picks its own type
+independently (e.g. one RM can mix `OGL_Operation` as Delphi with `bot-web-register` as
+Web App).
+
+**Subject** (same for both types):
 ```
 แจ้งตัด version เพื่อ Deploy UAT (<App>)
 ```
+
+### Delphi `.exe` (default — unchanged)
 
 **Description:**
 ```
@@ -102,17 +115,7 @@ The Master Pattern is:
 #ai-work
 ```
 
-**Multiple programs in one RM:** if the user wants to cut more than one program, keep ONE RM, ONE greeting, ONE footer. Change `จำนวน 1 โปรแกรม` to the real count (e.g. `จำนวน 2 โปรแกรม`), repeat only the numbered table block (`| 2. | โปรแกรม <App2>.exe |` … `APPROVED_TAG`) once per program separated by a blank line, and put `ขอบคุณครับ/ค่ะ` + `#ai-work` exactly once after the LAST program block. Never repeat the footer per program, and use the subject `แจ้งตัด version เพื่อ Deploy UAT (<N> โปรแกรม)`.
-
-**Footer rule:** the description must end with exactly ONE footer — `ขอบคุณครับ/ค่ะ`, blank line, `#ai-work` (with the hyphen, never `#aiwork`). The template above already contains it, so never append another `ขอบคุณครับ`/`#ai-work` after filling in the template.
-
-`RELEASE_VERSION` and `APPROVED_TAG` stay **blank** — they get filled in later by the
-release team's reply, never at creation time.
-
-Ask the user for each variable below **one question at a time** (don't dump them all as
-one big form) — skip a question only if the user already supplied that value unprompted
-earlier in the conversation:
-
+Ask, one at a time:
 1. **App name** (e.g. `OGL_Operation`, `OGL_Sale`) — used for the subject and as the base
    of `PROGRAM_NAME`. Confirm the derived `PROGRAM_NAME` (`<App>.exe`) with the user rather
    than asking it as a fully separate question.
@@ -124,6 +127,59 @@ earlier in the conversation:
    from the tracking sheet's "Sub Folder" column for this App.
 5. **DPR_FILE** (e.g. `OGL_Operation.dpr`) — usually `<App>.dpr`; confirm rather than
    ask fully separately if it follows that pattern.
+
+### Web App (new branch)
+
+**Description:**
+```
+เรียน IT Deploy
+
+ขอตัด version software SQL จำนวน 1 โปรแกรม ดังนี้
+
+| 1. | โปรแกรม <App> |
+| --- | --- |
+| **PROGRAM_NAME** | `<App>` |
+| **REPOSITORY** | `<REPOSITORY>` |
+| **COMMIT_HASH** | `<COMMIT_HASH>` |
+| **PROGRAM_PATH** | `<PROGRAM_PATH>` |
+| **ENVIRONMENT** | `UAT` |
+| **RELEASE_VERSION** | |
+| **APPROVED_TAG** | |
+
+ขอบคุณครับ/ค่ะ
+
+#ai-work
+```
+
+No `.exe` anywhere (table header row, `PROGRAM_NAME`), and **no `DPR_FILE` row at all** —
+drop the entire row, don't leave it blank or write `N/A`.
+
+Ask, one at a time:
+1. **App name** (e.g. `bot-web-register`, `bot-web-admin`) — used for the subject and as
+   `PROGRAM_NAME` verbatim (no `.exe` suffix) — confirm this with the user rather than
+   asking it as a fully separate question.
+2. **REPOSITORY** (e.g. `bot-web-register.git`)
+3. **COMMIT_HASH** (the commit being cut)
+4. **PROGRAM_PATH** — normally just the repo name itself (e.g. `bot-web-register`), **not**
+   a Sub Folder from the Delphi grouplife tracking sheet (that sheet only covers Delphi
+   Apps) — confirm the value with the user rather than guessing it matches the App name.
+5. **DPR_FILE** is never asked for a Web App program — skip it entirely.
+
+### Multiple programs in one RM (either type, or a mix of both)
+
+Keep ONE RM, ONE greeting, ONE footer. Change `จำนวน 1 โปรแกรม` to the real count (e.g.
+`จำนวน 2 โปรแกรม`), repeat only the numbered table block (using whichever shape — Delphi or
+Web App — applies to that program) once per program separated by a blank line, and put
+`ขอบคุณครับ/ค่ะ` + `#ai-work` exactly once after the LAST program block. Never repeat the
+footer per program, and use the subject `แจ้งตัด version เพื่อ Deploy UAT (<N> โปรแกรม)`.
+
+**Footer rule:** the description must end with exactly ONE footer — `ขอบคุณครับ/ค่ะ`, blank line, `#ai-work` (with the hyphen, never `#aiwork`). The template above already contains it, so never append another `ขอบคุณครับ`/`#ai-work` after filling in the template.
+
+`RELEASE_VERSION` and `APPROVED_TAG` stay **blank** by default — they get filled in later
+by the release team's reply, never at creation time. (Exception: if the user explicitly
+hands you the actual `RELEASE_VERSION`/`APPROVED_TAG` values themselves and confirms they
+want them set now rather than left blank, honor that explicit instruction instead — just
+don't ever guess or pre-fill these on your own initiative.)
 
 `ENVIRONMENT` is **never asked** — it is always `UAT`, fixed, same as `Assignee` (Step 2).
 So is **Due Date** — always **today's date** (the date the RM is created, `due_date` in
@@ -196,9 +252,11 @@ team's reply.
 
 - This skill never logs time and never posts follow-up notes — it only creates the one
   RM. Use `/redmine-logtime` separately if the user wants to log time on this.
-- Never invent values for `REPOSITORY`, `COMMIT_HASH`, `PROGRAM_PATH`, or `DPR_FILE` —
-  always get them from the user (or, for `PROGRAM_PATH`, from the tracking sheet via
-  `/git-clone-grouplife`), never guess from a similar-looking past RM.
+- Never invent values for `REPOSITORY`, `COMMIT_HASH`, `PROGRAM_PATH`, or (Delphi only)
+  `DPR_FILE` — always get them from the user (or, for a Delphi `PROGRAM_PATH`, from the
+  tracking sheet via `/git-clone-grouplife`), never guess from a similar-looking past RM.
+- App type (Delphi `.exe` vs Web App) is asked per program, every time — never assumed
+  from the App name or from a past RM for the same App.
 
 ---
 
