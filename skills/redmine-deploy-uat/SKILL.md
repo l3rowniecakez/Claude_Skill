@@ -120,7 +120,11 @@ Ask, one at a time:
    of `PROGRAM_NAME`. Confirm the derived `PROGRAM_NAME` (`<App>.exe`) with the user rather
    than asking it as a fully separate question.
 2. **REPOSITORY** (e.g. `delphi/groupwork-system-2016.git`)
-3. **COMMIT_HASH** (the commit being cut)
+3. **COMMIT_HASH** (the commit being cut) — **always the FULL 40-character hash**, never
+   the 7-char short form (e.g. `4bc1636fda7799ff6c960e8573381e5b98fc819f`, not `4bc1636`).
+   If the user gives a short hash, expand it first with
+   `git -C "<local repo path>" rev-parse <short>` (or `git rev-parse origin/master` for the
+   latest) and show the full value in the Step 5 preview. Never post a short hash.
 4. **PROGRAM_PATH** — the Sub Folder path (e.g.
    `GroupLifeInsuranceSystem_Operation/trunk`). If the user doesn't know it offhand,
    suggest using `/git-clone-grouplife` or `/git-clone-grouplife-update` to look it up
@@ -159,7 +163,11 @@ Ask, one at a time:
    `PROGRAM_NAME` verbatim (no `.exe` suffix) — confirm this with the user rather than
    asking it as a fully separate question.
 2. **REPOSITORY** (e.g. `bot-web-register.git`)
-3. **COMMIT_HASH** (the commit being cut)
+3. **COMMIT_HASH** (the commit being cut) — **always the FULL 40-character hash**, never
+   the 7-char short form (e.g. `4bc1636fda7799ff6c960e8573381e5b98fc819f`, not `4bc1636`).
+   If the user gives a short hash, expand it first with
+   `git -C "<local repo path>" rev-parse <short>` (or `git rev-parse origin/master` for the
+   latest) and show the full value in the Step 5 preview. Never post a short hash.
 4. **PROGRAM_PATH** — normally just the repo name itself (e.g. `bot-web-register`), **not**
    a Sub Folder from the Delphi grouplife tracking sheet (that sheet only covers Delphi
    Apps) — confirm the value with the user rather than guessing it matches the App name.
@@ -252,6 +260,8 @@ team's reply.
 
 - This skill never logs time and never posts follow-up notes — it only creates the one
   RM. Use `/redmine-logtime` separately if the user wants to log time on this.
+- **`COMMIT_HASH` must always be the full 40-character hash — never abbreviated** (hard
+  rule). Check the length before every create/update call.
 - Never invent values for `REPOSITORY`, `COMMIT_HASH`, `PROGRAM_PATH`, or (Delphi only)
   `DPR_FILE` — always get them from the user (or, for a Delphi `PROGRAM_PATH`, from the
   tracking sheet via `/git-clone-grouplife`), never guess from a similar-looking past RM.
