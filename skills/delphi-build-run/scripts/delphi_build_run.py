@@ -14,7 +14,7 @@ Sub-commands (all print JSON unless noted):
   run <dpr> [--set N=V ...]      start the built exe (saved params are used unless overridden)
   recent                         list projects used before on this machine (for /delphi-build-run with no path)
   configs <dpr>                  show Config.ini the exe reads + its Data_Source + template inis
-  use-config <dpr> --server 52|139|22 [--allow-derived]   point Config.ini at that DB server
+  use-config <dpr> --server 52|139|22 [--allow-derived]   point Config.ini at that DB server (edits only Data_Source in place)
 
 Per-machine settings live in ~/.config/delphi-build-run/config.json (outside the skill).
 """
@@ -508,7 +508,12 @@ def cmd_use_config(a):
     cands = ini_candidates(exe_dir)
     exact = [c for c in cands if c["server"] == ip]
     derived = False
-    if exact:
+    if cur.exists() and DS_RE.search(cur.read_bytes()):
+        # Existing Config.ini: change ONLY the Data_Source line in place. Never replace the file with a
+        # template -- templates may lack project-specific keys (e.g. App_Benefit_USER_NAME/PASS).
+        src = cur
+        data = DS_RE.sub(lambda m: m.group(1) + ip.encode() + m.group(3), cur.read_bytes(), 1)
+    elif exact:
         src = exact[0]["_p"]
         data = src.read_bytes()
     else:
@@ -529,7 +534,7 @@ def cmd_use_config(a):
             backup.write_bytes(cur.read_bytes())
     cur.write_bytes(data)
     print(json.dumps({"status": "switched", "server": ip, "config": to_win(cur),
-                      "from_template": to_win(src), "derived": derived,
+                      "from_template": None if src == cur else to_win(src), "derived": derived,
                       "backup": to_win(backup) if backup else None}, ensure_ascii=False))
 
 

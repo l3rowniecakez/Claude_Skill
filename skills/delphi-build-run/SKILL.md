@@ -42,8 +42,8 @@ Build ด้วย `dcc32.exe` ของ Delphi 7 แล้ว run exe ที่
 4.1 (ไม่บังคับ) ถ้าผู้ใช้อยากให้เปลี่ยนค่าเฉพาะครั้งนี้ ใช้ `run --set N=V` แทนการบันทึก
 4.2 **เลือก DB server ที่จะ run** (เฉพาะโหมดที่มี run และโปรแกรมมี `Config.ini` ข้าง exe): รัน `configs <dpr>` อ่าน config ที่ exe ใช้จริง (`Config.ini` ใน folder ของ exe — โปรแกรม Delphi กลุ่มนี้อ่าน `GetExePath + 'Config.ini'`) แล้วดู `current_server` และ `candidates` (Config*.ini ข้าง exe/folder แม่ที่มี Data_Source)
    - ถามด้วย AskUserQuestion แบบ radio (single-select): **.52** (10.100.2.52 = SIT) / **.139** (10.100.3.139) / **.22** (12.100.7.22 = UAT) — label ตามที่ผู้ใช้ยืนยัน ห้ามใช้ข้อความ `pnDatabaseName` ใน MainUnit.pas เป็นตัวอ้างอิง (มันเขียนสลับ: .52 ขึ้นว่า UAT) — **ค่า default คือ IP ที่อยู่ใน config ปัจจุบัน (`current_server`)**: ให้วางข้อที่ตรงกับ `current_server` เป็นข้อแรกสุดและใส่ "(Recommended) (ค่าใน config ปัจจุบัน)" ส่วนอีก 2 ข้อเรียงตามหลัง; ถ้า `current_server` ไม่ตรงกับ .52/.139/.22 (เช่น เป็น prod) ให้เพิ่มเป็นข้อแรกด้วย IP จริงนั้น (สูงสุด 4 ตัวเลือก); ไม่ต้องสลับ config ถ้าผู้ใช้เลือกข้อแรก
-   - ถ้าเลือกต่างจากปัจจุบัน: `use-config <dpr> --server 52|139|22` — script copy template ini ที่ Data_Source ตรงมาเป็น `Config.ini` และสำรองไฟล์เดิมไว้ครั้งแรกเป็น `Config.ini.before-delphi-build-run` (ไม่ทับ backup เดิม)
-   - ถ้าไม่มี template ของ server นั้น (ปัจจุบัน **.22 ไม่มี template**) script จะปฏิเสธ → บอกผู้ใช้ตรงๆ ว่าจะเป็นการ copy จาก template .52 แล้วเปลี่ยนเฉพาะ `Data_Source` ยังไม่ยืนยัน user/password ภายในไฟล์ ถามยืนยันด้วย radio ก่อน แล้วค่อย re-run ด้วย `--allow-derived`
+   - ถ้าเลือกต่างจากปัจจุบัน: `use-config <dpr> --server 52|139|22` — script แก้**เฉพาะบรรทัด `Data_Source`** ใน `Config.ini` เดิมในที่ (byte-safe) ไม่แทนที่ทั้งไฟล์ด้วย template (template อาจขาด key เฉพาะโปรเจกต์ เช่น `App_Benefit_USER_NAME/PASS` ทำให้ต่อ DB ไม่ได้) และสำรองไฟล์เดิมไว้ครั้งแรกเป็น `Config.ini.before-delphi-build-run` (ไม่ทับ backup เดิม); ใช้ template ก็ต่อเมื่อยังไม่มี `Config.ini` เลย
+   - ถ้าไม่มี `Config.ini` อยู่ก่อนและไม่มี template ของ server นั้น (ปัจจุบัน **.22 ไม่มี template**) script จะปฏิเสธ → บอกผู้ใช้ตรงๆ ว่าจะเป็นการ copy จาก template .52 แล้วเปลี่ยนเฉพาะ `Data_Source` ยังไม่ยืนยัน user/password ภายในไฟล์ ถามยืนยันด้วย radio ก่อน แล้วค่อย re-run ด้วย `--allow-derived`
    - login param (user/pass จากขั้น 4) เป็นคนละอย่างกับ DB account ใน Config.ini ห้ามเอามาปะปนหรืออ่านค่า password ใน ini ออกมาแสดง
    - ต้องสลับ config **ก่อน** `run` และตอนสรุปให้บอกว่า run ด้วย server ไหน
 5. **Build**: `build <dpr>` (เพิ่ม `--rebuild` = -B build all)
@@ -82,7 +82,7 @@ Build ด้วย `dcc32.exe` ของ Delphi 7 แล้ว run exe ที่
 ## กฎ
 
 - **คำถามที่มีตัวเลือกจำกัดทั้งหมด** (โปรเจกต์ที่จะ run เมื่อไม่มั่นใจ, โหมด build/run, DB server .52/.139/.22, ใช้ user/pass ที่บันทึกไว้หรือเปลี่ยน, จะบันทึก param ไหม) ต้องถามด้วย AskUserQuestion แบบ radio ให้ผู้ใช้กดเลือก ไม่ให้พิมพ์ตอบ — พิมพ์เฉพาะกรณีที่ต้องกรอกค่าจริง (path โปรแกรม, user, password) ซึ่งใช้ช่อง "Other" ของ AskUserQuestion ได้
-- ห้ามเขียน password ลงใน output/สรุปแบบ plain text — mask เป็น `***` เสมอ
+- ห้ามเขียน password ลงใน output/สรุปแบบ plain text — mask เป็น `***` เสมอ รวมค่าเข้ารหัสใน Config.ini (`*_USER_PASS`) ด้วย — ถ้าจะดูเนื้อหา ini ให้ซ่อนทุกบรรทัดที่ key ลงท้าย `PASS`/`PASSWORD` แบบไม่สนตัวพิมพ์
 - **ห้ามแก้ source code ทุกกรณี** (ดูกล่องขอบเขตด้านบน) — แก้ได้แค่ `Data_Source` ใน `Config.ini` ตามที่ผู้ใช้เลือก
 - การตั้งค่าเฉพาะเครื่อง (Delphi root, param ที่จำไว้, รายการโปรเจกต์ล่าสุด `recent`) อยู่ที่ `~/.config/delphi-build-run/config.json` ไม่ใช่ใน skill — ย้ายเครื่องแล้วต้อง `detect`/ถามใหม่
 - ถ้าต้องเขียน Python เพิ่มเพื่อจัดการเรื่องนี้ ให้ใส่ไว้ใน `scripts/` ของ skill นี้เท่านั้น (ห้ามเขียนสคริปต์ที่ไปแก้โค้ดโปรเจกต์)
