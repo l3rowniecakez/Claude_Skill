@@ -309,10 +309,15 @@ Ask whether this deploy round includes any DB scripts.
    (the master template's title *is* the pattern, read it literally rather than
    inventing a different scheme):
    ```
-   <วันที่สร้างไฟล์ YYYYMMDD>_Deploy_<เลข RM ที่ครอบคลุม e.g. #12345, #12346>
+   <วันที่ Deploy YYYYMMDD>_Deploy_<เลข RM ที่ครอบคลุม e.g. #12345, #12346>
    ```
-   `<วันที่สร้างไฟล์>` is **today's actual date** (when this Sheet is created), not the
-   scheduled Deploy date from Step 4. `<เลข RM ที่ครอบคลุม>` is the covered Defect/UR RM
+   `<วันที่ Deploy>` is **the Deploy date the user gave in Step 4 (question 7)**, converted
+   to `YYYYMMDD` (e.g. `23/09/2026` → `20260923`). It is **NEVER today's date / the Sheet's
+   creation date** — the master template's own title literally says
+   `<วันที่ Deploy ตาม RM Format YYYYMMDD ...>`, i.e. the scheduled Deploy date. Using the
+   Sheet's creation date was a real bug (fixed 2026-10-20) — always take it from the user's
+   Deploy date answer, and if that answer is somehow missing at this point, ask the user
+   rather than falling back to `date`. `<เลข RM ที่ครอบคลุม>` is the covered Defect/UR RM
    number(s) — the same ones that go into Section 4 Redmine Ref (Step 6 below) — **not**
    the Deploy Production RM's own number (that doesn't exist yet at this point in the
    flow; see the `ITD` cell note below). A title like `OGL_SALE 2026-09-30` (App name +
