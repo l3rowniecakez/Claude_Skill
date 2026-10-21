@@ -31,6 +31,31 @@ STREAM_HINTS = [
 ]
 
 
+_SESSION_NAMES = None
+
+
+def session_names() -> dict:
+    """session uuid -> ชื่อที่ผู้ใช้ตั้งด้วย /rename (custom-title ล่าสุด, ไม่มีใช้ agent-name)"""
+    global _SESSION_NAMES
+    if _SESSION_NAMES is None:
+        _SESSION_NAMES = {}
+        files = sorted(Path.home().glob(".claude/projects/*/*.jsonl"), key=lambda f: f.stat().st_mtime)
+        for f in files:
+            try:
+                for line in f.open(encoding="utf-8", errors="replace"):
+                    if '"custom-title"' in line or '"agent-name"' in line:
+                        try:
+                            o = json.loads(line)
+                        except ValueError:
+                            continue
+                        n = o.get("customTitle") or o.get("agentName")
+                        if n and o.get("sessionId"):
+                            _SESSION_NAMES[o["sessionId"]] = n
+            except OSError:
+                pass
+    return _SESSION_NAMES
+
+
 def parse(path: Path) -> dict:
     text = path.read_text(encoding="utf-8", errors="replace")
     meta = {}
@@ -58,6 +83,7 @@ def parse(path: Path) -> dict:
     meta["file"] = str(path)
     meta["mtime"] = path.stat().st_mtime
     meta["legacy"] = legacy
+    meta["session_name"] = session_names().get(meta.get("session", ""), "")
     return meta
 
 
@@ -117,6 +143,8 @@ def cmd_list(args):
             rm = f"RM #{d['rm']}" if d.get("rm") else "-"
             nxt = f"  → {d['next']}" if d.get("next") else ""
             print(f"- [{d['status']}] {d['key']} | {rm} | {d['title'][:90]} | {age(d)} ago{nxt}")
+            if d.get("session_name"):
+                print(f"    session: {d['session_name']}")
             print(f"    {d['file']}")
             shown += 1
     if not shown:
@@ -130,6 +158,8 @@ def find_key(key):
     hist = [d for d in all_handoffs() if d["key"].lower() == key]
     if not hist:
         hist = [d for d in all_handoffs() if key in d["key"].lower() or key in Path(d["file"]).name.lower()]
+    if not hist:  # ชื่อ session ที่ตั้งด้วย /rename
+        hist = [d for d in all_handoffs() if d.get("session_name") and key in d["session_name"].lower()]
     return hist
 
 
@@ -212,6 +242,10 @@ def main():
             if str(Path(d["file"]).resolve()) != keep and d["status"] in OPEN_STATES:
                 set_status(d["file"], "superseded"); n += 1
         print(f"superseded {n} older handoff(s) of {key}")
+    elif cmd == "sessions":  # ตารางชื่อ session -> key (ใช้ตรวจว่า /rename ตรงกับงาน)
+        for d in latest_per_key(all_handoffs()):
+            if d.get("session_name"):
+                print(f"{d['session_name']}\t{d['key']}\t{d.get('session', '')}")
     elif cmd == "verify":
         cmd_verify(args)
     else:

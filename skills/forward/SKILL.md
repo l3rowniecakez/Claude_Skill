@@ -63,6 +63,10 @@ git -C "$REPO" status --short; git -C "$REPO" rev-list --count @{u}..HEAD 2>/dev
 
 Session id: เอาจาก path ของ scratchpad/transcript ของ session ปัจจุบัน (uuid เต็ม) — ใช้ `claude --resume <uuid>` ได้
 
+**ชื่อ session**: `handoffs.py` อ่านชื่อที่ผู้ใช้ตั้งด้วย `/rename` จาก transcript (custom-title) เองตามค่า `session:` ใน frontmatter — ไม่ต้องเก็บชื่อลงไฟล์ (ชื่อเปลี่ยนทีหลังก็ตามทัน) และ `/recap <ชื่อ session>` ใช้ชื่อนี้หาไฟล์ได้
+- ถ้า session ปัจจุบันยังไม่มีชื่อ → ตอนจบ /forward เตือนหนึ่งบรรทัดให้พิมพ์ `/rename <key>` (เช่น `/rename rm12345` หรือชื่อสั้นที่จำได้) — skill เปลี่ยนชื่อ session เองไม่ได้
+- `python3 ~/.claude/skills/forward/scripts/handoffs.py sessions` = ตารางชื่อ session → key → uuid
+
 ## Step 3 — Checklist เฉพาะสายงาน (ใส่ในหัวข้อ "State")
 
 ตอบเฉพาะข้อที่เกี่ยว, ข้อไหนไม่รู้ให้เขียน `?` ไม่ต้องเดา

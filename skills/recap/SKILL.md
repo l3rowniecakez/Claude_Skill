@@ -18,6 +18,7 @@ trigger: /recap
 /recap --stream cde    # เฉพาะสายงาน (grouplife | cde | cam | bot | other)
 /recap --all           # รวมงานที่ closed/superseded/legacy เก่า
 /recap --rich          # โหมด Rich เดิม (recap-rich.ts, ψ ของ repo)
+/recap webbot          # ชื่อ session ที่ตั้งด้วย /rename ก็ได้ (หาจาก custom-title ผ่าน handoffs.py)
 ```
 
 Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกับ cwd) — script กลาง:
@@ -50,6 +51,8 @@ Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกั
    แล้วทำขั้นตอน B กับงานที่เลือก
 
 ### B. `/recap <RM|key>` — โหลดงานเดียว
+
+> `<RM|key>` ใช้ได้ 3 แบบ: เลข RM, key, หรือ **ชื่อ session** (`find_key` ลำดับ: key → ชื่อไฟล์ → ชื่อ session). ถ้าชื่อ session ตรงหลาย key (เช่น `webbot` → rm12345 + rm23456) ให้แสดงรายการแล้วถามว่าจะเอาอันไหน. ตาราง list แสดง `session: <ชื่อ>` ใต้แต่ละงาน
 
 1. `python3 $H show <key>` → Read ไฟล์ handoff นั้นทั้งไฟล์ (+ `history <key>` ถ้าต้องดูย้อนหลัง)
 2. `python3 $H verify <key>` + ตรวจ pending แต่ละข้อกับของจริงตาม "Verify Before Reporting" ด้านล่าง
