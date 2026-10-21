@@ -14,6 +14,9 @@ no guessing. This script turns that rule into a check that does not depend on an
  3. NO LEFTOVER TEMPLATE TEXT — placeholders such as SCR-XXX-000, "[ชื่อ", "[อธิบาย", "[PLACEHOLDER" = FAIL.
  4. SOURCE PATHS — every `...pas/.dfm/.dpr/.sql` path written in backticks in spec.md / plan.md / tasks.md / research.md /
     data-model.md / quickstart.md / contracts/* must exist in the snapshot, otherwise FAIL.
+ 6. CROSS-REFERENCES — every ID mentioned in the text (BR-004, Q-006, BTN-002 ...) must be DEFINED as the first cell of a table row in the same
+    REQ file; an undefined reference = WARN "xref-undefined" (may legitimately point to another screen's REQ), a duplicated definition = FAIL
+    "xref-duplicate". Mechanical only: it cannot tell that Q-006 is about the wrong topic — that stays with the auditor.
  5. HEDGING WORDS (น่าจะ / คงจะ / probably / maybe / assume) outside the Assumptions/Open-Issues sections = WARN.
 
 Usage: verify_evidence.py <workspace> <feature_dir_name>      (prints JSON report; exit 1 when fail_count > 0)
@@ -41,7 +44,7 @@ class Snapshot:
         self.root = Path(root)
         self.files = {}
         for p in self.root.rglob("*"):
-            if p.is_file() and not p.name.startswith(".tree_"):
+            if p.is_file() and not p.name.startswith(".tree_") and not p.name.endswith(".digest.txt"):   # digests are reading aids, never evidence
                 self.files[p.relative_to(self.root).as_posix().lower()] = p
         self._cache = {}
 
@@ -139,6 +142,30 @@ def check_req(path, snap, rep):
             rep["warn"].append({"file": name, "check": "hedging", "detail": ln.strip()[:140]})
 
 
+XREF_DEF = re.compile(r"^[A-Z]{1,5}-\d{3}(?:-\d+)?$")
+XREF_USE = re.compile(r"(?<![\w-])((?:F|BTN|COL|ACT|BR|MSG|PRE|POST|ALT|EC|AC|Q|A|US|NFR|SC|KE)-\d{3})(?![\w-])")
+
+
+def check_xref(path, rep):
+    text = path.read_text(encoding="utf-8")
+    body, _, appendix = text.partition("APPENDIX A")
+    defined, dups = {}, []
+    for ln in body.splitlines():
+        if ln.lstrip().startswith("|"):
+            first = ln.strip().strip("|").split("|")[0].strip().strip("`*")
+            if XREF_DEF.match(first):
+                if first in defined:
+                    dups.append(first)
+                defined[first] = True
+    for d in sorted(set(dups)):
+        rep["fail"].append({"file": path.name, "check": "xref-duplicate", "id": d, "detail": "ID defined as a table row more than once"})
+    used = set()
+    for m in XREF_USE.finditer(re.sub(r"```.*?```", "", body, flags=re.S)):
+        used.add(m.group(1))
+    for u in sorted(used - set(defined)):
+        rep["warn"].append({"file": path.name, "check": "xref-undefined", "id": u, "detail": "ID mentioned but never defined as a table row in this file"})
+
+
 def check_paths(fdir, snap, rep):
     targets = [fdir / n for n in ("spec.md", "plan.md", "tasks.md", "research.md", "data-model.md", "quickstart.md")]
     targets += sorted((fdir / "contracts").glob("*")) if (fdir / "contracts").is_dir() else []
@@ -167,6 +194,7 @@ def main():
         rep["fail"].append({"file": "req/", "check": "req-files", "detail": "no REQ_*.md found"})
     for r in reqs:
         check_req(r, snap, rep)
+        check_xref(r, rep)
     check_paths(fdir, snap, rep)
     rep["fail_count"], rep["warn_count"], rep["req_files"] = len(rep["fail"]), len(rep["warn"]), [r.name for r in reqs]
     print(json.dumps(rep, ensure_ascii=False, indent=1))

@@ -7,6 +7,7 @@ are mirrored once into  <workspace>/source/  and every evidence reference points
 
   <workspace>/source/<repo>/<full repo path>      Delphi .pas/.dfm/.dpr read from Gitblit master (same endpoint as /git-learn-grouplife);
                                                    Thai text is restored from Gitblit's mojibake (see fix_thai) so quotes are real Thai
+  <workspace>/source/.../X.dfm.digest.txt          READING AID: decoded .dfm minus layout/font/colour/blob props, `<orig line>|<line>` (scan_form.py)
   <workspace>/source/.../X.dfm.decoded.txt         .dfm with #3650#3619-style char codes turned into real Thai, SAME line numbers as the .dfm
   <workspace>/source/_db/<db>/<object>.sql         stored proc / view / function definition (OBJECT_DEFINITION, raw)
   <workspace>/source/_db/<db>/<table>.table.txt    table structure, ONE fact per line (columns / PK / FK / unique)
@@ -185,8 +186,16 @@ def cmd_files(repo, sub, ws, names, max_bytes=2_000_000):
         rec = {"path": p, "local": str(local), "lines": text.count("\n") + 1, "thai": thai}
         if p.lower().endswith(".dfm"):
             side = Path(str(local) + ".decoded.txt")
-            write_ro(side, decode_dfm_text(text))
+            decoded = decode_dfm_text(text)
+            write_ro(side, decoded)
             rec["decoded_sidecar"] = str(side)
+            # reading-aid: same lines minus layout/font/colour/blob props (scan_form.py dfm); Agents Read THIS, quote from the decoded file
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from scan_form import dfm_digest
+            digest = Path(str(local) + ".digest.txt")
+            write_ro(digest, "\n".join(f"{n}|{l}" for n, l in dfm_digest(decoded)) + "\n")
+            rec["digest"] = str(digest)
+            rec["digest_saved_pct"] = round(100 * (1 - digest.stat().st_size / max(len(decoded.encode("utf-8")), 1)), 1)
         out["fetched"].append(rec)
         if thai == "unrepaired":
             out["errors"].append({"path": p, "error": "high-latin characters that are not a clean cp874 round trip — Thai text in this file may be garbled; do NOT quote it"})

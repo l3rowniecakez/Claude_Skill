@@ -15,8 +15,8 @@ argument-hint: "[ชื่อ App]"
 ระบบนี้เขียนเสร็จแล้ว — เป็นการถอดระบบที่มีอยู่ (as-built) ไม่ใช่การวางแผนระบบใหม่. กฎที่ผู้ใช้ล็อกไว้:
 **เอกสารต้องตรงกับ code ปัจจุบัน 100% — ห้ามคาดเดา — ห้ามแก้ไข code ใด ๆ ทั้งสิ้น**
 
-อ่านก่อนลงมือ (Read ทุกครั้ง): `references/req-mapping.md` (วิธีกรอก template ราย Section สำหรับ Delphi + รูปแบบ Evidence Map) และ
-`references/agent-prompts.md` (prompt ของ Agent A เขียน REQ / Agent C ผู้ตรวจ).
+อ่านก่อนลงมือ: `references/agent-prompts.md` (prompt ของ Agent A เขียน REQ / Agent C ผู้ตรวจ — orchestrator ต้องใช้ส่งต่อ).
+**orchestrator ไม่ต้อง Read `references/req-mapping.md`** (วิธีกรอก template ราย Section + Evidence Map) — Agent A เป็นคนอ่านเอง (prompt สั่งไว้แล้ว) ยกเว้นต้องตัดสินใจเรื่อง SCR-ID/รูปแบบเอง.
 
 ตัวแปร: `PY` = python ที่ติดตั้ง `requirements.txt` (เครื่องเจ้าของ skill = `~/.config/redmine-summary-to-email/venv/bin/python3`; เครื่องอื่น = venv ของตัวเอง),
 `S` = `~/.claude/skills/git-learn-grouplife-speckit/scripts` — ตั้งใหม่ทุกคำสั่ง Bash. Workspace ในเครื่อง = `<WORKDIR>/<Group>/<AppName>`
@@ -77,48 +77,25 @@ $PY $S/sheet_speckit.py header <spreadsheet_id> "<app_folder_url>" <YYYY-MM-DD>
 
 ## Phase 4 — ทำทีละเมนู (Break point: หยุดหลังแต่ละเมนู)
 
+0. **Shared notes (ครั้งเดียวต่อ App, ไม่ใช้ LLM)** — ถ้ายังไม่มี `<WS>/_shared.md`: ดึง `Utility.pas`/`MainUnit.pas`/DataModule ด้วย `fetch_source.py files`, ดู `scan_form.py pas <ไฟล์>` หา method ตัวเปิดฟอร์มกลาง
+   (เช่น `OpenFormMenu`, `OpenModalForm`, `FindShowForm`, `FindShowModalForm`) แล้ว `$PY $S/scan_form.py body <ไฟล์> <Method…> >> <WS>/_shared.md` (เนื้อ method ตรงตัว + เลขบรรทัดจริง; ไม่มีชื่อนั้นใน App อื่น = พิมพ์ NOT FOUND ให้ข้าม).
+   Agent A อ่านไฟล์นี้แทนการอ่าน unit กลางซ้ำทุกหน้าจอ; ไฟล์นี้ไม่ใช่ evidence และไม่อัปโหลด.
 1. `$PY $S/init_workspace.py init "<Group>" "<AppName>"` (ครั้งแรก) แล้ว `$PY $S/init_workspace.py feature "<Group>" "<AppName>" "<FEATURE>"` → `specs/<FEATURE>/req/`.
 2. **ไล่หน้าจอแบบ BFS (ผู้ใช้กำหนด 2026-10-20: เจอฟอร์มลูก/ลิงก์ไปฟอร์มอื่นต้องทำด้วย ไม่ต้องถามเพิ่ม)**
    - คิวเริ่มต้น = หน้าจอของเมนู (แถวเมนู + `descendant_rows` จาก Sheet), `DEPTH` = 0; `VISITED` = unit (ชื่อ .pas ตัวพิมพ์เล็ก) ที่มี REQ แล้ว — รวมของเมนูอื่นใน `WS/specs/*/req/REQ_*.md` (grep บรรทัด `unit:` ใน META).
-   - ต่อ 1 หน้าจอ: **Agent A (REQ writer)** 1 ตัว (`references/agent-prompts.md`) — ดึง source/DB เป็น snapshot, **ไล่หาทุกจุดที่เปิดฟอร์ม/โปรแกรมอื่น (บังคับ)**, เขียน `req/REQ_<SCR-ID>_<unit>.md`, วน `verify_evidence.py` จน `fail_count = 0` → ได้ `child_forms`, `external_programs`, `opener`.
+   - ต่อ 1 หน้าจอ: **Agent A (REQ writer)** 1 ตัว (`references/agent-prompts.md`; หน้าจอลูกเล็กที่ใช้ unit ร่วมกันรวมเป็นตัวเดียวได้ แต่ได้ REQ 1 ไฟล์/หน้าจอเหมือนเดิม) — ดึง source/DB เป็น snapshot, **ไล่หาทุกจุดที่เปิดฟอร์ม/โปรแกรมอื่น (บังคับ)**, เขียน `req/REQ_<SCR-ID>_<unit>.md`, วน `verify_evidence.py` จน `fail_count = 0` → ได้ `child_forms`, `external_programs`, `opener`.
    - ทุก `child_forms` ที่ unit ยังไม่อยู่ใน VISITED → ใส่คิว (`DEPTH`+1) ทำ Agent A ต่อโดยไม่ถามผู้ใช้; ที่อยู่ใน VISITED → แค่ลิงก์; หลายลูกในชั้นเดียวกันเรียก Agent ขนานได้ (เขียนไฟล์คนละไฟล์) แต่ verify/upload ทีละตัว.
    - จำกัดความลึก **5 ชั้น** — เกินแล้วหยุดและรายงานผู้ใช้ว่าชั้นไหนยังไม่ได้ไล่. `external_programs` (WinExec/คนละ exe) ไม่ไล่ต่อ รายงานผู้ใช้ (ถ้าต้องการให้รัน skill กับ App ปลายทาง).
    - เสร็จทุกหน้าจอ → เขียน/อัปเดต `req/README.md` (สารบัญ + ต้นไม้ "หน้าจอแม่ → ปุ่ม → หน้าจอลูก" + โปรแกรมภายนอก + opener).
    - **ถ้าฟอร์มลูกที่พบไม่มีแถวใน Menu Contents** → ใช้ SCR-ID ตามกฎใน `references/req-mapping.md`; แจ้งผู้ใช้ในสรุปว่า Sheet analyst ตกหล่นฟอร์มนี้ (ควรรัน analyst เติม).
-3. **Gate 1** — รัน `$PY $S/verify_evidence.py <WS> <FEATURE>` เองซ้ำ (อย่าเชื่อรายงาน agent); ไม่ผ่าน → ส่งกลับให้ A แก้ (≤ 2 รอบ) ไม่ผ่านอีก = หยุดเมนูนั้นและรายงานตรง ๆ.
+3. **Gate 1** — รัน `$PY $S/fill_evidence.py <WS> <FEATURE>` แล้ว `$PY $S/verify_evidence.py <WS> <FEATURE>` เองซ้ำ (อย่าเชื่อรายงาน agent) และอ่านเฉพาะ `fail_count`/รายการ fail — ไม่ต้อง Read ไฟล์ REQ เข้า context orchestrator; ไม่ผ่าน → ส่งกลับให้ A แก้ (≤ 2 รอบ) ไม่ผ่านอีก = หยุดเมนูนั้นและรายงานตรง ๆ.
 4. **Gate 2 — Agent C (ผู้ตรวจอิสระ)** เทียบ REQ **ทุกหน้าจอของเมนู** กับ `source/` ทุกข้อ **และ grep หาปุ่ม/handler ที่เปิดฟอร์มอื่นที่ REQ ไม่ได้บันทึก** (บทเรียนจริง: verify_evidence ผ่านแต่ผู้ตรวจพบเลขบรรทัดผิด/ข้ออ้างเกิน code/พฤติกรรมตกหล่น)
-   → แก้ REQ ตามผล (เปิดไฟล์ยืนยันก่อนแก้ทุกข้อ; ฟอร์มลูกที่ตกหล่น = กลับไปทำ Agent A ต่อ) → เรียก C ตัวใหม่ซ้ำจนว่าง (≤ 3 รอบ). ไม่หมด = รายงานรายการค้างตรง ๆ — **ห้ามอ้างว่าตรง 100% ถ้ายังไม่ผ่าน**.
+   → แก้ REQ ตามผล (เปิดไฟล์ยืนยันก่อนแก้ทุกข้อ; ฟอร์มลูกที่ตกหล่น = กลับไปทำ Agent A ต่อ) → จด ID ที่แก้เป็น `CHANGED` → fill+verify ซ้ำ → รอบ 2–3 ส่ง `CHANGED` ให้ C (ต่อตัวเดิมด้วย `SendMessage` หรือตัวใหม่ก็ได้ — ตรวจเฉพาะส่วนที่แก้) จนว่าง (≤ 3 รอบ; รอบ 1 ตรวจเต็มเสมอ). ไม่หมด = รายงานรายการค้างตรง ๆ — **ห้ามอ้างว่าตรง 100% ถ้ายังไม่ผ่าน**.
 5. **อัปโหลด**: `$PY $S/speckit_drive.py upload <feature_folder_id> <WS>/specs/<FEATURE>` (ไม่อัป `source/`) → created/updated/stale. ฟอร์มลูกที่เพิ่งพบ: ใส่ URL โฟลเดอร์เดียวกันในคอลัมน์ SpecKit ของแถวลูกใน Sheet (ถ้ามีแถว) ผ่าน `sheet_speckit.py menus`.
 6. Break point: จบ turn ด้วย `[เมนูที่ n/N] <breadcrumb> ✅` + ลิงก์ + จำนวนหน้าจอ + ต้นไม้ฟอร์มลูก + สถานะ gate + จุดค้าง + รายการเมนูที่เหลือ → รอ `continue`/`stop`. ห้ามเริ่มเมนูถัดไปเอง.
 
-## Phase 5 — แปะลิงก์กลับที่ Sheet ต้นทาง (App ที่ถูก WinExec จาก App อื่น)
+## Phase 5–6, ตารางสคริปต์, ข้อจำกัด
 
-```bash
-$PY $S/speckit_stamp_origin.py <origin_spreadsheet_id> <app_spreadsheet_id> <YYYY-MM-DD> [--dry]
-```
-จับแถวต้นทางจาก `/d/<app_spreadsheet_id>/` ใน Sheet URL, เขียนเฉพาะ cell `SpecKit`, รันซ้ำได้. `<origin_spreadsheet_id>` ถามผู้ใช้/หาด้วย `find_app_sheet.py` — ห้ามเดา.
-
-## Phase 6 — สรุปให้ผู้ใช้
-
-ลิงก์โฟลเดอร์ App/เมนูบน Drive + Sheet; ต่อเมนู: จำนวนหน้าจอ (ไฟล์ REQ), ผล gate (verify_evidence / ผู้ตรวจ), Open Questions ที่ผู้ใช้ต้องตอบ, `sheet_vs_code_diffs`
-(Sheet analyst ควรอัพเดท), unit ที่ไม่ได้อ่าน, ไฟล์ `stale`. ไม่ต้อง commit/push.
-
-## สคริปต์
-
-| สคริปต์ | หน้าที่ |
-|---|---|
-| `check_setup.py` | preflight |
-| `find_app_sheet.py` / `read_menus.py` | หา Sheet / อ่าน Menu Contents (`list`), tab วิเคราะห์ (`tab`), tab ER (`er`) |
-| `speckit_drive.py` | `ensure-app` / `ensure-feature` / `upload` (ทับชื่อเดิม ไม่ซ้ำ ไม่ลบ) / `download` |
-| `sheet_speckit.py` / `speckit_stamp_origin.py` | คอลัมน์ `SpecKit` + "Speckit URL" (A5/B5) + B4 / แปะกลับต้นทาง WinExec |
-| `init_workspace.py` | สร้าง workspace + `specs/<FEATURE>/req/` |
-| `fetch_source.py` | snapshot source (`files [--max-bytes N]`, `tree`) และ DB object (`db`) แบบ read-only; กู้ไทยจาก Gitblit (cp874→mojibake) + `*.dfm.decoded.txt`; `tree` ข้ามโฟลเดอร์ที่ Gitblit ตอบ 500 |
-| `verify_evidence.py` | gate "ห้ามเดา": quote/บรรทัด/ครอบคลุม ID/placeholder/path |
-
-ต้องอ่านโค้ดจาก `source/` เสมอ ไม่ใช่ `browse_repo.py read` ตรง ๆ (ไทยเพี้ยน); `.dfm` เก็บไทยเป็นรหัส `#3650#…` — อ่านจาก `*.dfm.decoded.txt`.
-
-## ข้อจำกัด
-
-- "ตรง 100%" = ตรง master ของ repo + DB SIT `10.100.2.52` ณ วันที่สร้าง; runtime config/ข้อมูลจริงในตารางอ่านไม่ได้ → Open Issue.
-- ไฟล์ใหญ่ (> 2MB เช่น `MainUnit.dfm`) ต้องใช้ `--max-bytes` แล้ว grep (อย่า Read ทั้งไฟล์); Gitblit ล็อกอิน timeout ได้ — ลองใหม่/แจ้งผู้ใช้ ไม่วนซ้ำ.
-- ใช้เวลา/token ต่อเมนูมาก (อ่าน source+DB + เขียน REQ + ผู้ตรวจอิสระ) — แนะนำ Break point.
+อ่าน `references/phase5-6-and-scripts.md` **เมื่อถึงขั้นนั้นเท่านั้น** (Phase 5 = `speckit_stamp_origin.py` แปะลิงก์กลับต้นทาง WinExec; Phase 6 = สรุปให้ผู้ใช้; ไม่ต้องอ่านตอนเริ่มงาน).
+สคริปต์ช่วยประหยัด token ที่ใช้ใน Phase 4: `scan_form.py` (dfm digest / events / pas index / body / opens), `fill_evidence.py` (เติมคำพูดใน Evidence Map), `verify_evidence.py` (gate).
+อ่านโค้ดจาก `source/` เสมอ ไม่ใช่ `browse_repo.py read` ตรง ๆ (ไทยเพี้ยน); `.dfm` อ่านผ่าน `*.dfm.digest.txt` แล้วคัดอ้างจาก `*.dfm.decoded.txt`; ไฟล์ > 2MB ใช้ `--max-bytes` แล้ว grep.
