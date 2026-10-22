@@ -38,7 +38,7 @@ from googleapiclient.http import MediaFileUpload
 
 ROOT_FOLDER_ID = "1MHYE71oBUdH70DwdoIP-n1CQ_nzvrSfL"
 FOLDER = "application/vnd.google-apps.folder"
-SKIP = {".DS_Store", "Thumbs.db"}
+SKIP = {".DS_Store", "Thumbs.db", "_evidence"}   # _evidence = sidecar evidence maps, local only (REQ is written spec-first, no code refs)
 MIME = {".md": "text/markdown", ".json": "application/json", ".txt": "text/plain", ".yml": "text/plain",
         ".yaml": "text/plain", ".sql": "text/plain"}
 _KW = dict(supportsAllDrives=True)

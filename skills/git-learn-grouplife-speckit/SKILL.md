@@ -15,6 +15,10 @@ argument-hint: "[ชื่อ App]"
 ระบบนี้เขียนเสร็จแล้ว — เป็นการถอดระบบที่มีอยู่ (as-built) ไม่ใช่การวางแผนระบบใหม่. กฎที่ผู้ใช้ล็อกไว้:
 **เอกสารต้องตรงกับ code ปัจจุบัน 100% — ห้ามคาดเดา — ห้ามแก้ไข code ใด ๆ ทั้งสิ้น**
 
+**โหมด Spec-first (ผู้ใช้สั่งปรับ 2026-10-22 เพื่อลด token)**: ถอดแบบ reverse engineering แต่เขียน REQ ให้อ่านเหมือน**เอกสารที่เกิดก่อน coding** — ภาษา business/ผู้ใช้,
+ไม่มีชื่อไฟล์/method/component/เลขบรรทัด/โค้ดดิบในตัว REQ; ความตรง code 100% ยังบังคับ แต่ตรวจที่ **พฤติกรรม (BR/MSG/POST/ALT + ฟอร์มลูก)** ไม่ใช่ทุก field/ทุกบรรทัด.
+หลักฐาน (path:บรรทัด+คำพูด) เก็บแยกใน `req/_evidence/` ไม่อยู่ใน REQ และไม่อัปโหลด Drive. ต้นฉบับ skill รุ่นเข้มเดิมสำรองที่ `~/.claude/skills-backup/2026-10-22/git-learn-grouplife-speckit/`.
+
 อ่านก่อนลงมือ: `references/agent-prompts.md` (prompt ของ Agent A เขียน REQ / Agent C ผู้ตรวจ — orchestrator ต้องใช้ส่งต่อ).
 **orchestrator ไม่ต้อง Read `references/req-mapping.md`** (วิธีกรอก template ราย Section + Evidence Map) — Agent A เป็นคนอ่านเอง (prompt สั่งไว้แล้ว) ยกเว้นต้องตัดสินใจเรื่อง SCR-ID/รูปแบบเอง.
 
@@ -28,7 +32,7 @@ argument-hint: "[ชื่อ App]"
    ห้าม clone/commit/push/แก้ repo; ห้ามรันโปรแกรม Delphi. `source/` ใน workspace = snapshot `chmod 444` ไม่อัปโหลดขึ้น Drive.
 2. **เขียนได้เฉพาะ**: workspace ในเครื่อง; Drive ใต้ "GroupLife SpecKit by Claude AI"; Sheet ของ App = คอลัมน์ `SpecKit`, `A5/B5` ("Speckit URL"), `B4` (วันที่)
    — ห้ามแตะ tab วิเคราะห์/tab [ER]/คอลัมน์ ER-Diagram/ไฟล์ Template. ห้ามลบอะไรบน Drive เว้นแต่ผู้ใช้สั่ง.
-3. **ห้ามเดา — บังคับด้วยเครื่องตรวจ**: REQ ทุกไฟล์มี Evidence Map (คำพูดตรงตัวจากไฟล์ใน `source/` + บรรทัด) และ `scripts/verify_evidence.py` ต้อง `fail_count = 0`
+3. **ห้ามเดา — บังคับด้วยเครื่องตรวจ**: REQ ทุกไฟล์มีไฟล์ evidence คู่ใน `req/_evidence/` (path:บรรทัด → คำพูดตรงตัวจาก `source/`; บังคับทุกแถว BR/MSG/POST/ALT) และ `scripts/verify_evidence.py` ต้อง `fail_count = 0`
    ก่อนอัปโหลด. สิ่งที่ code ตอบไม่ได้ = Open Issue (Section 9) ไม่ใช่ค่าที่คิดเอง; ข้อเท็จจริงนอก source (ความหมายมาตรฐาน T-SQL/VCL ฯลฯ) ต้องติดป้ายบอกที่มา.
 4. **Sheet analyst เป็นแผนที่ ไม่ใช่หลักฐาน** — ขัดกับ code เมื่อไหร่ code ชนะ + แจ้งความต่างให้ผู้ใช้.
 5. **เมนูเดิม = UPDATE ทับ** (โฟลเดอร์/ไฟล์ชื่อเดิมบน Drive ถูกอัปเดต ไม่สร้างซ้ำ; ไฟล์ที่ไม่มีในรอบนี้รายงานเป็น `stale` ไม่ลบเอง) — ผู้ใช้ที่เลือกเมนูที่ "มี SpecKit แล้ว" ถือว่ายอมรับการ regenerate.
@@ -83,15 +87,15 @@ $PY $S/sheet_speckit.py header <spreadsheet_id> "<app_folder_url>" <YYYY-MM-DD>
 1. `$PY $S/init_workspace.py init "<Group>" "<AppName>"` (ครั้งแรก) แล้ว `$PY $S/init_workspace.py feature "<Group>" "<AppName>" "<FEATURE>"` → `specs/<FEATURE>/req/`.
 2. **ไล่หน้าจอแบบ BFS (ผู้ใช้กำหนด 2026-10-20: เจอฟอร์มลูก/ลิงก์ไปฟอร์มอื่นต้องทำด้วย ไม่ต้องถามเพิ่ม)**
    - คิวเริ่มต้น = หน้าจอของเมนู (แถวเมนู + `descendant_rows` จาก Sheet), `DEPTH` = 0; `VISITED` = unit (ชื่อ .pas ตัวพิมพ์เล็ก) ที่มี REQ แล้ว — รวมของเมนูอื่นใน `WS/specs/*/req/REQ_*.md` (grep บรรทัด `unit:` ใน META).
-   - ต่อ 1 หน้าจอ: **Agent A (REQ writer)** 1 ตัว (`references/agent-prompts.md`; หน้าจอลูกเล็กที่ใช้ unit ร่วมกันรวมเป็นตัวเดียวได้ แต่ได้ REQ 1 ไฟล์/หน้าจอเหมือนเดิม) — ดึง source/DB เป็น snapshot, **ไล่หาทุกจุดที่เปิดฟอร์ม/โปรแกรมอื่น (บังคับ)**, เขียน `req/REQ_<SCR-ID>_<unit>.md`, วน `verify_evidence.py` จน `fail_count = 0` → ได้ `child_forms`, `external_programs`, `opener`.
+   - ต่อ 1 หน้าจอ: **Agent A (REQ writer)** 1 ตัว (`references/agent-prompts.md`; หน้าจอลูกเล็กที่ใช้ unit ร่วมกันรวมเป็นตัวเดียวได้ แต่ได้ REQ 1 ไฟล์/หน้าจอเหมือนเดิม) — ดึง source/DB เป็น snapshot, **ไล่หาทุกจุดที่เปิดฟอร์ม/โปรแกรมอื่น (บังคับ)**, เขียน `req/REQ_<SCR-ID>_<unit>.md` แบบ spec-first + evidence แยกไฟล์, วน `verify_evidence.py` จน `fail_count = 0` → ได้ `child_forms`, `external_programs`, `opener`.
    - ทุก `child_forms` ที่ unit ยังไม่อยู่ใน VISITED → ใส่คิว (`DEPTH`+1) ทำ Agent A ต่อโดยไม่ถามผู้ใช้; ที่อยู่ใน VISITED → แค่ลิงก์; หลายลูกในชั้นเดียวกันเรียก Agent ขนานได้ (เขียนไฟล์คนละไฟล์) แต่ verify/upload ทีละตัว.
    - จำกัดความลึก **5 ชั้น** — เกินแล้วหยุดและรายงานผู้ใช้ว่าชั้นไหนยังไม่ได้ไล่. `external_programs` (WinExec/คนละ exe) ไม่ไล่ต่อ รายงานผู้ใช้ (ถ้าต้องการให้รัน skill กับ App ปลายทาง).
    - เสร็จทุกหน้าจอ → เขียน/อัปเดต `req/README.md` (สารบัญ + ต้นไม้ "หน้าจอแม่ → ปุ่ม → หน้าจอลูก" + โปรแกรมภายนอก + opener).
    - **ถ้าฟอร์มลูกที่พบไม่มีแถวใน Menu Contents** → ใช้ SCR-ID ตามกฎใน `references/req-mapping.md`; แจ้งผู้ใช้ในสรุปว่า Sheet analyst ตกหล่นฟอร์มนี้ (ควรรัน analyst เติม).
 3. **Gate 1** — รัน `$PY $S/fill_evidence.py <WS> <FEATURE>` แล้ว `$PY $S/verify_evidence.py <WS> <FEATURE>` เองซ้ำ (อย่าเชื่อรายงาน agent) และอ่านเฉพาะ `fail_count`/รายการ fail — ไม่ต้อง Read ไฟล์ REQ เข้า context orchestrator; ไม่ผ่าน → ส่งกลับให้ A แก้ (≤ 2 รอบ) ไม่ผ่านอีก = หยุดเมนูนั้นและรายงานตรง ๆ.
-4. **Gate 2 — Agent C (ผู้ตรวจอิสระ)** เทียบ REQ **ทุกหน้าจอของเมนู** กับ `source/` ทุกข้อ **และ grep หาปุ่ม/handler ที่เปิดฟอร์มอื่นที่ REQ ไม่ได้บันทึก** (บทเรียนจริง: verify_evidence ผ่านแต่ผู้ตรวจพบเลขบรรทัดผิด/ข้ออ้างเกิน code/พฤติกรรมตกหล่น)
-   → แก้ REQ ตามผล (เปิดไฟล์ยืนยันก่อนแก้ทุกข้อ; ฟอร์มลูกที่ตกหล่น = กลับไปทำ Agent A ต่อ) → จด ID ที่แก้เป็น `CHANGED` → fill+verify ซ้ำ → รอบ 2–3 ส่ง `CHANGED` ให้ C (ต่อตัวเดิมด้วย `SendMessage` หรือตัวใหม่ก็ได้ — ตรวจเฉพาะส่วนที่แก้) จนว่าง (≤ 3 รอบ; รอบ 1 ตรวจเต็มเสมอ). ไม่หมด = รายงานรายการค้างตรง ๆ — **ห้ามอ้างว่าตรง 100% ถ้ายังไม่ผ่าน**.
-5. **อัปโหลด**: `$PY $S/speckit_drive.py upload <feature_folder_id> <WS>/specs/<FEATURE>` (ไม่อัป `source/`) → created/updated/stale. ฟอร์มลูกที่เพิ่งพบ: ใส่ URL โฟลเดอร์เดียวกันในคอลัมน์ SpecKit ของแถวลูกใน Sheet (ถ้ามีแถว) ผ่าน `sheet_speckit.py menus`.
+4. **Gate 2 — Agent C (ผู้ตรวจพฤติกรรม, รอบเดียว)** ตรวจเฉพาะ BR/MSG/POST/ALT ทุกแถว + พฤติกรรมที่ตกหล่นใน handler + ฟอร์มลูกที่ REQ ไม่ได้บันทึก + ข้ออ้าง DB schema ที่มีผลต่อพฤติกรรม (ดู `agent-prompts.md`; ข้าม UI field/AC/US)
+   → แก้ REQ ตามผล (เปิดไฟล์ยืนยันก่อนแก้ทุกข้อ; ฟอร์มลูกที่ตกหล่น = กลับไปทำ Agent A ต่อ) → fill+verify ซ้ำ. **ไม่เรียก C ซ้ำ** เว้นแต่ contradictions ≥ 4 หรือแก้เกี่ยวกับฟอร์มลูก → เรียกอีก 1 รอบ (ตัวใหม่) เฉพาะส่วนที่แก้ (รวมสูงสุด 2 รอบ). มีข้อค้าง = รายงานตรง ๆ — **ห้ามอ้างว่าตรง 100% ถ้ายังไม่ผ่าน**.
+5. **อัปโหลด**: `$PY $S/speckit_drive.py upload <feature_folder_id> <WS>/specs/<FEATURE>` (ไม่อัป `source/` และ `_evidence/`) → created/updated/stale. ฟอร์มลูกที่เพิ่งพบ: ใส่ URL โฟลเดอร์เดียวกันในคอลัมน์ SpecKit ของแถวลูกใน Sheet (ถ้ามีแถว) ผ่าน `sheet_speckit.py menus`.
 6. Break point: จบ turn ด้วย `[เมนูที่ n/N] <breadcrumb> ✅` + ลิงก์ + จำนวนหน้าจอ + ต้นไม้ฟอร์มลูก + สถานะ gate + จุดค้าง + รายการเมนูที่เหลือ → รอ `continue`/`stop`. ห้ามเริ่มเมนูถัดไปเอง.
 
 ## Phase 5–6, ตารางสคริปต์, ข้อจำกัด

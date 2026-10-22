@@ -74,10 +74,20 @@ def parse_range(s):
     return (a, b) if b >= a else None
 
 
+COVER_REQUIRED = re.compile(r"^(BR|MSG|POST|ALT)-")   # spec-first mode: only behaviour rows need evidence; UI rows (F/BTN/COL/ACT/PRE/EC) are optional
+
+
+def sidecar_for(path):
+    return path.parent / "_evidence" / (path.stem + ".evidence.md")
+
+
 def check_req(path, snap, rep):
     text = path.read_text(encoding="utf-8")
     name = path.name
     body, _, appendix = text.partition("APPENDIX A")
+    side = sidecar_for(path)
+    if side.is_file():            # spec-first mode: evidence lives beside the REQ, not inside it
+        appendix = side.read_text(encoding="utf-8")
     # coverage targets
     ids = []
     for ln in body.splitlines():
@@ -128,7 +138,8 @@ def check_req(path, snap, rep):
             rep["fail"].append({"file": name, "check": "evidence-quote", "id": eid,
                                 "detail": f"quote NOT found in {ref}: {q[:100]}"})
     for i in sorted(set(ids) - have):
-        rep["fail"].append({"file": name, "check": "coverage", "id": i, "detail": "table row has no evidence line"})
+        if COVER_REQUIRED.match(i):
+            rep["fail"].append({"file": name, "check": "coverage", "id": i, "detail": "table row has no evidence line"})
     for i in sorted(have - set(ids)):
         rep["warn"].append({"file": name, "check": "orphan-evidence", "id": i, "detail": "evidence id not used as a table row id"})
     for m in PLACEHOLDERS.finditer(body):

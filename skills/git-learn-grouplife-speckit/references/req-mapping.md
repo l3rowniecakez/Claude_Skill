@@ -4,6 +4,9 @@ Template ต้นฉบับ: `~/.claude/skills/STANDARD_REQ_TEMPLATE_v1_1/STA
 ต้นฉบับ). Template เขียนมาสำหรับเว็บที่ยังไม่ได้สร้าง; ที่นี่เรา**ถอด requirement จากระบบที่สร้างเสร็จแล้ว**
 ดังนั้นทุกข้อความต้องมาจาก code จริง. เอกสารต่อ 1 หน้าจอ = 1 ไฟล์ `REQ_<SCR-ID>_<ชื่อ form/unit>.md` ใน `specs/<feature>/req/`.
 
+> **โหมด Spec-first (2026-10-22)**: REQ เขียนเป็นภาษา business/ผู้ใช้ เหมือนเอกสารที่เกิดก่อน coding แต่ต้องตรง code 100% — ห้ามมีชื่อไฟล์/unit/method/component/เลขบรรทัด/โค้ดดิบใน Section 1–11, 13;
+> ชื่อตาราง/คอลัมน์ใช้ได้เฉพาะ Section 12/14. ที่ด้านล่างนี้ คอลัมน์ "ดึงจาก" บอกว่าอ่านจากไหน **ไม่ใช่สิ่งที่ต้องเขียนลงใน REQ**. Evidence แยกไฟล์ (ดู Section 4) — ไม่มี APPENDIX ในไฟล์ REQ.
+
 ## 1. หน้าจอ = ไฟล์ REQ
 
 - หน้าจอ = form ของเมนู 1 แถวใน "Menu Contents" (tab วิเคราะห์ของเมนูนั้น) **รวม**แถวลูกที่ breadcrumb ขึ้นต้นด้วย
@@ -19,7 +22,7 @@ Template ต้นฉบับ: `~/.claude/skills/STANDARD_REQ_TEMPLATE_v1_1/STA
 
 ## 2. กฎเหล็ก (ผิดข้อใดข้อหนึ่ง = verify_evidence.py ไม่ผ่าน หรือผู้ตรวจ reject)
 
-1. **ทุกข้อเท็จจริงมีหลักฐาน** ใน `APPENDIX A — EVIDENCE MAP` (รูปแบบข้อ 4). ไม่มีหลักฐาน = ห้ามเขียน.
+1. **ทุกกฎ/ข้อความ/ผลต่อข้อมูลมีหลักฐาน** ในไฟล์ evidence แยก (รูปแบบข้อ 4) — บังคับ `BR-`/`MSG-`/`POST-`/`ALT-`; แถวอื่นใส่เท่าที่ช่วยได้. ไม่มีหลักฐาน = ห้ามเขียน.
 2. **อ่านจาก snapshot ใน `source/` เท่านั้น** (ดึงด้วย `fetch_source.py`) — ไม่อ่านสดจาก Gitblit, ไม่เชื่อ Sheet analyst ลอย ๆ.
    Sheet analyst ใช้เป็น "แผนที่" (หา unit/store/ตาราง) เท่านั้น; ถ้า Sheet ขัดกับ code → **code ชนะ** แล้วจดความต่างไว้ใน
    Section 9 เป็น `Q-xxx` ชนิด "Sheet analyst ไม่ตรง code: …" (ให้ผู้ใช้รู้ว่า Sheet ควรอัพเดท).
@@ -65,26 +68,21 @@ Template ต้นฉบับ: `~/.claude/skills/STANDARD_REQ_TEMPLATE_v1_1/STA
 | Pre-Check 18 ข้อ | ตอบเป็น ✅/❌ + หมายเหตุสั้น ๆ; ข้อที่เป็นของงาน SA ใหม่ (ข้อ 12 ปิด Q, ข้อ 15 SMS) → `N/A (as-built)` |
 | CHANGE LOG | `v1.0 | <วันนี้> | Claude Code | ถอดจาก source ปัจจุบัน (reverse-spec)` |
 
-## 4. APPENDIX A — EVIDENCE MAP (ท้ายไฟล์ REQ ทุกไฟล์ ต่อจาก CHANGE LOG)
+## 4. EVIDENCE (ไฟล์แยก — ไม่อยู่ใน REQ, ไม่อัปโหลด Drive)
+
+ไฟล์: `specs/<feature>/req/_evidence/<ชื่อ REQ ไม่รวม .md>.evidence.md` (ตัวอย่าง `_evidence/REQ_SCR-BENEFITS-012_ListAcClaimWaitPay.evidence.md`)
 
 ~~~markdown
-## APPENDIX A — EVIDENCE MAP
 ```evidence
-F-001 :: EdForm/EdAcHospital.pas:120-124 :: `edCode.MaxLength := 10;`
-MSG-001 :: EdForm/EdAcHospital.pas:440 :: `ShowMessage('บันทึกข้อมูลเรียบร้อย!');`
-BR-004 :: _db/OceanLife/sp_xxx.sql:35 :: `WHERE Hospital_Type = 6`
-COL-002 :: EdForm/EdAcHospital.dfm.decoded.txt:812 :: `Title.Caption = 'ชื่อโรงพยาบาล'`
+BR-004 :: _db/OceanLife/sp_xxx.sql:35
+MSG-001 :: EdForm/EdAcHospital.pas:440
+BTN-002 :: EdForm/EdAcHospital.dfm.decoded.txt:812-815
 ```
 ~~~
 
-(ตัวอย่างข้างบนเป็นรูปแบบเท่านั้น — ค่าจริงต้องมาจากไฟล์ใน `source/` ที่อ่านจริงในรอบนี้)
-
-- รูปแบบบรรทัด: `<ID> :: <path>:<บรรทัด หรือ บรรทัดเริ่ม-จบ> :: \`<คำพูดตรงตัว>\``; คั่นด้วย ` :: ` (เว้นวรรคสองข้าง).
-  **ย่อได้**: เขียนแค่ `<ID> :: <path>:<บรรทัดเริ่ม[-จบ]>` แล้วรัน `fill_evidence.py <workspace> <feature_dir>` — สคริปต์คัดลอกคำพูดตรงตัวจากช่วงบรรทัดนั้นให้ (ช่วงแคบ 1–3 บรรทัด; ยาวเกิน 220 ตัวอักษรใช้บรรทัดแรก). ช่วงที่ชี้ผิดยังทำให้ verify ไม่ผ่านตามเดิม.
-- `<path>` = path ใต้ `source/` (ใช้ท้าย path ที่ไม่ซ้ำก็พอ); `.dfm` อ้างผ่าน `*.dfm.decoded.txt` ได้ (เลขบรรทัดเท่า `.dfm`).
-- คำพูด = **คัดลอกตรงตัวจากไฟล์** 1 statement/1 property, ไม่เกิน ~200 ตัวอักษร, ห้ามสรุป/แปล/ย่อ (ช่องว่าง/ขึ้นบรรทัดไม่นับ แต่ตัวอักษรต้องตรง รวมตัวพิมพ์เล็ก-ใหญ่).
-  คำพูดมี `|` ในตาราง markdown ไม่เป็นปัญหา เพราะอยู่ในบล็อก fenced.
-- **เซลล์แรกของแถวตารางที่มี ID ต้องมีแค่ ID ล้วน** (เช่น `BTN-001`) — ใส่ชื่อปุ่ม/คอมโพเนนต์ไว้เซลล์ถัดไป ไม่งั้น verify_evidence อ่านเป็น orphan-evidence.
-- ID ที่ต้องมีหลักฐาน = ทุก ID ที่เป็นเซลล์แรกของแถวตารางใน Section 3/3.3/4.1/4.3/5/6/7/8.2/13 (`F-`, `BTN-`, `COL-`, `ACT-`, `BR-`, `MSG-`,
-  `PRE-`, `POST-`, `ALT-`, `EC-`). ID เดียวมีหลักฐานได้หลายบรรทัด. `AC-`, `Q-`, `A-`, `US` ไม่ต้องมี.
-- ตรวจด้วย: `python verify_evidence.py <workspace> <feature_dir>` — ต้อง `fail_count = 0`.
+- เขียนแค่ `<ID> :: <path>:<บรรทัดเริ่ม[-จบ]>` (ช่วงแคบ 1–3 บรรทัดที่มี statement/property นั้นจริง) แล้วรัน `fill_evidence.py <workspace> <feature_dir>` — สคริปต์คัดลอกคำพูดตรงตัวจากไฟล์จริงให้
+  (`<ID> :: <path>:<ช่วง> :: \`<คำพูด>\``). ช่วงที่ชี้ผิดทำให้ verify ไม่ผ่าน (นี่คือสัญญาณ "เดา" จริง).
+- `<path>` = path ใต้ `source/` (ใช้ท้าย path ที่ไม่ซ้ำก็พอ); `.dfm` อ้างผ่าน `*.dfm.decoded.txt`.
+- **เซลล์แรกของแถวตารางที่มี ID ต้องมีแค่ ID ล้วน** (เช่น `BTN-001`) — ชื่อปุ่ม/คอมโพเนนต์ไว้เซลล์ถัดไป.
+- **บังคับมีหลักฐาน**: ทุกแถว `BR-`, `MSG-`, `POST-`, `ALT-`. **ไม่บังคับ**: `F-`, `BTN-`, `COL-`, `ACT-`, `PRE-`, `EC-` (ใส่ถ้าช่วยให้ผู้ตรวจเทียบได้เร็ว). `AC-`, `Q-`, `A-`, `US` ไม่ต้องมี.
+- ตรวจด้วย: `python verify_evidence.py <workspace> <feature_dir>` — ต้อง `fail_count = 0`. (REQ รุ่นเก่าที่ยังมี `APPENDIX A` ในไฟล์ก็ยังตรวจได้ตามเดิม — ถ้ามีไฟล์ใน `_evidence/` จะใช้ไฟล์นั้นก่อน.)

@@ -52,10 +52,12 @@ def main():
     snap = Snapshot(ws / "source")
     rep = {"feature": feat, "filled": 0, "already_quoted": 0, "unresolved": []}
     for req in sorted((fdir / "req").glob("REQ_*.md")):
-        text = req.read_text(encoding="utf-8")
+        side = req.parent / "_evidence" / (req.stem + ".evidence.md")
+        target = side if side.is_file() else req
+        text = target.read_text(encoding="utf-8")
         head, sep, appendix = text.partition("APPENDIX A")
-        if not sep:
-            continue
+        if not sep:                                   # sidecar has no APPENDIX heading: whole file is the evidence block
+            head, sep, appendix = "", "", text
 
         def fix_block(m):
             out = []
@@ -75,7 +77,7 @@ def main():
 
         new_app = re.sub(r"(```evidence\s*\n)(.*?)(```)", fix_block, appendix, flags=re.S)
         if new_app != appendix:
-            req.write_text(head + sep + new_app, encoding="utf-8")
+            target.write_text(head + sep + new_app, encoding="utf-8")
     print(json.dumps(rep, ensure_ascii=False, indent=1))
     sys.exit(1 if rep["unresolved"] else 0)
 
