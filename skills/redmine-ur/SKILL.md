@@ -1,7 +1,7 @@
 ---
 installer: create-shortcut
 name: redmine-ur
-description: 'Implement a Redmine UR (User Request) code fix in any Delphi7 group-insurance program suite repo (OGL_Operation, OGL_Claim, OGL_Benefit, OGL_Center_Report, OGL_FindInfo, OGL_Premium, OGL_Reinsurance, OGL_Sale, GroupLife, etc. — not limited to OGL_Operation): read + analyze the RM, plan (with Phase/Task breakdown for large work), get developer approval before any coding, implement phase-by-phase with a review gate at each phase, then record the result as DB script file(s) + a FormEdit.txt update in the ticket folder. Use when user says "/redmine-ur", sends a Redmine UR ticket, or asks to fix/แก้ไข a program point in this suite. Never write code before explicit approval, never touch anything outside the requested scope, and never skip the FormEdit.txt/db-script recording step when a fix is done.'
+description: 'Implement a Redmine UR (User Request) code fix in any Delphi7 group-insurance program suite repo (OGL_Operation, OGL_Claim, OGL_Benefit, OGL_Center_Report, OGL_FindInfo, OGL_Premium, OGL_Reinsurance, OGL_Sale, GroupLife, etc. — not limited to OGL_Operation): read + analyze the RM, plan (with Phase/Task breakdown for large work), get developer approval before any coding, implement phase-by-phase with a review gate at each phase, then record the result as DB script file(s) + a FormEdit.txt update in the ticket folder. Use when user says "/redmine-ur", sends a Redmine UR ticket, or asks to fix/แก้ไข a program point in this suite. Never write code before explicit approval, never touch anything outside the requested scope, and never skip the FormEdit.txt/db-script recording step when a fix is done. Also supports Speckit mode: when the ticket has a speckit/<RM>/ folder (REQ + spec.md + plan.md + tasks.md from the /speckit-* workflow, any stack incl. PHP Web Bot), tasks.md becomes the plan, each tasks.md Phase is one approval gate, finished tasks are ticked in tasks.md, and /speckit-converge closes the loop.'
 created_at: 2026-07-24T12:23:48+07:00
 argument-hint: "[redmine-issue-url-or-number] [ticket-folder-path]"
 ---
@@ -21,6 +21,12 @@ skill is not just to make the code change, but to plan it properly, get it appro
 phase-by-phase, and make sure every fix is **recorded** the way this project always records
 them: a numbered DB script file per stored procedure/table touched, and a `FormEdit.txt`
 update in the same ticket folder.
+
+**Speckit mode (added 2026-10-26):** the same workflow also runs on tickets that are managed
+with Spec Kit (`speckit/<RM>/` folder, e.g. the Web Bot repo). In that mode the Spec Kit
+documents replace Step 2's hand-drafted plan, and Steps 3/4/7/8 gain a few extra rules — see
+the **Speckit mode** section right after Step 1. Everything else (approval gates, scope
+discipline, never commit/push, `#ai-work`, FormEdit.txt) still applies unchanged.
 
 ---
 
@@ -51,7 +57,71 @@ never write the word "JIRA" inside `FormEdit.txt` content itself, always "Redmin
 
 ---
 
+## Speckit mode — detect it right after Step 1
+
+**Detect (do this every time, read-only):** look for a `speckit/` folder in the repo/ticket
+folder (e.g. `<ticket folder>\speckit\`) that contains a folder named
+after this RM number (`speckit/<RM>/`), or ask if the user said "speckit". Report which
+artifacts exist: `REQ_*.md`, `spec.md`, `plan.md`, `tasks.md`, `research.md`,
+`data-model.md`, `contracts/`, `quickstart.md`, `checklists/`, and whether `spec.md` has a
+`## Clarifications` section. No `speckit/<RM>/` folder → this section does not apply, continue
+with the classic flow (Delphi suite tickets normally have none).
+
+**Which stage is the ticket at?** Follow the fixed Spec Kit order: REQ (`/STANDARD_REQ_TEMPLATE_v1_1`) → `/speckit-specify` →
+`/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` →
+`/speckit-checklist` (optional) → implement → `/speckit-converge`. Tell the user the next
+missing step and **do not skip ahead** (for example coding while `tasks.md` or the analyze
+step is missing) without saying so and getting a yes. Never run `/speckit-taskstoissues`
+(deprecated). Each `/speckit-*` command is run only when the user asks for that step.
+
+**Before running any `/speckit-*` command**, make sure `speckit/.specify/feature.json` has
+`{"feature_directory": "<RM>"}` for this ticket (the scripts locate the feature through it).
+Show the user the change if it points at another feature; do not change it silently.
+
+**What replaces what in Speckit mode**
+
+| Classic step | In Speckit mode |
+|---|---|
+| Step 2 plan | `spec.md` + `plan.md` + `tasks.md` are the plan. Do **not** draft a second, parallel task list. Read them, summarise phases / constitution check / open risks, and compare against the RM description + journals for gaps. |
+| Step 3 phase gates | One gate per `## Phase N` heading in `tasks.md`; the `**Checkpoint**` line under it is the review gate. |
+| Step 7 FormEdit.txt | Still required. Take the changed files / stored procedures / tables from `tasks.md` + the actual diff. |
+| Step 8 close | Add the Speckit close-out items below. |
+
+**Changing requirements mid-flight:** when the user adds or changes something, update the
+Spec Kit documents rather than only the chat plan: edit/clarify `spec.md` (record it under
+`## Clarifications`), then regenerate or hand-edit `plan.md` / `tasks.md` so the three stay
+consistent, and re-present the affected phases for approval. If it conflicts with
+`.specify/memory/constitution.md`, stop and ask — amending the constitution is a separate
+`/speckit-constitution` run that only happens on the user's instruction.
+
+**Test-first facts to confirm, not assume:** `plan.md`/`research.md` often mark items
+"ต้องยืนยันด้วย baseline" (to be confirmed by a baseline run). Do those baseline tasks first
+and, if the result contradicts a spec statement, stop and tell the user before coding.
+
+**Executing tasks (Step 3 in this mode)**
+- Implement only the tasks of the phase the user has just approved with an explicit
+  "เริ่ม" (or equivalent). Approving the plan, or a previous phase, is not approval for the next.
+- Do **not** run `/speckit-implement` unfiltered — it executes every task in `tasks.md`.
+  Either do the approved phase's tasks directly, or pass `/speckit-implement` an explicit
+  filter limited to that one phase.
+- Respect the task markers: tasks without `[P]` run in order; `[P]` tasks may run together only
+  when they touch different files.
+- Tick a task (`- [ ]` → `- [x]`) in `tasks.md` right after it is actually done **and verified**
+  (the check named in the task passed). A task that failed, was skipped, or is blocked stays
+  unticked with a one-line note under it. Never tick `checklists/*.md` boxes — those belong to
+  `/speckit-specify`, `/speckit-clarify` and the reviewer.
+- At the phase's `**Checkpoint**`, stop, summarise results against the task's own acceptance
+  checks, and wait for the user's approval before the next phase.
+- Anything a task marks as destructive-test (dropping a table, writing test rows) needs the
+  backup step that the task lists first; never run it against SIT/UAT/Production unless the
+  task and the user say so.
+
+---
+
 ## Step 2 — Read, analyze, and plan (no coding yet)
+
+*(Speckit mode: the plan already exists as `spec.md`/`plan.md`/`tasks.md` — see the Speckit
+mode section; summarise and get approval instead of drafting a new one.)*
 
 Read the subject, description, and journals fully to understand what's actually being
 requested. Analyze the impact, then draft a concrete, itemized task list.
@@ -84,6 +154,13 @@ Once the developer approves the plan, implement **one phase at a time**:
 ---
 
 ## Step 4 — Implement, following this repo's conventions
+
+*(Speckit mode, non-Delphi repos such as the PHP Web Bot: the Delphi-specific bullets below —
+`TMSStoredProc`, `.pas`/`.dfm`, ReportBuilder — do not apply. The repo's own
+`speckit/.specify/memory/constitution.md` and the plan's "Constraints" govern instead; keep the
+file's existing line endings (check for CRLF before editing — use byte-safe splicing when a
+file is CRLF), use the exact existing user-facing messages, and keep the scope-discipline and
+`#ai-work` rules below.)*
 
 - **Stick to the existing code pattern.** Before writing any new SQL/component, grep
   the codebase for the same table/operation and mirror its exact shape and
@@ -179,6 +256,12 @@ For every stored procedure created or altered for this ticket, in the ticket fol
 
 ## Step 7 — Update FormEdit.txt
 
+*(Speckit / web projects: open the project's existing `FormEdit.txt` first — for a web project it
+is the `FormEdit.txt` in that project's ticket folder — and **reuse the section headings it already uses**
+(for example `[ Web App ]` instead of `[ Delphi Form ]`). The Delphi block below is the
+template for the Delphi suite only. Keep both parts (cumulative top block + dated entry), and
+list the DB script files under the folder that project already uses for them.)*
+
 In the same ticket folder, update `FormEdit.txt` with **both** parts:
 
 1. **Rebuild the top summary block** — one cumulative, deduplicated block covering every
@@ -261,6 +344,13 @@ gate):
 
 1. Confirm Step 7 (`FormEdit.txt`) is done — this is a required part of closing, not an
    optional follow-up.
+2. **Speckit mode only:** (a) every finished task is ticked in `tasks.md` and every
+   unfinished one has its note; (b) offer `/speckit-converge` to compare the code against
+   `spec.md` and add any missing tasks — run it only when the user says so; (c) when the work
+   leaves results that the spec asked to be recorded (baseline/compare files, test notes),
+   confirm they are saved under `speckit/<RM>/`; (d) remind the user that Redmine notes and
+   time are posted separately (`/redmine-logtime`, Markdown, `#ai-work`) and that commit/push
+   needs their explicit instruction (`/git-commit-push`).
 
 Do **not** touch `D:\WORK\delphi7_for_claude\Doc\db-schema\...` — those doc snapshots are
 no longer maintained. For any table/stored-procedure structure question, query the live DB
