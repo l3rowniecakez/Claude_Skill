@@ -35,6 +35,7 @@ DIRTY_COLOR = "\033[38;5;215m"
 CLEAN_COLOR = "\033[38;5;120m"
 SYNC_COLOR = "\033[38;5;117m"
 NOGIT_COLOR = "\033[38;5;245m"
+GITHUB_COLOR = "\033[38;5;252m"
 
 BAR_WIDTH = 15
 BAR_FILLED_CHAR = "●"
@@ -493,6 +494,25 @@ def read_git_head(root):
     return f"detached@{head[:7]}"
 
 
+GITHUB_REMOTE = re.compile(
+    r"^(?:(?:https?|ssh|git)://(?:[^@/]+@)?|[^@/\s]+@)(?:ssh\.)?github\.com(?:-[\w.-]+)?(?::\d+)?[:/]+"
+    r"([^/\s]+)/([^/\s]+?)(?:\.git)?/?$",
+    re.IGNORECASE,
+)
+GITHUB_BRANCH_NUM = re.compile(r"(?:^|/)(?:gh[-_]?)?(\d{1,6})(?=[-_/]|$)(?!-\d)", re.IGNORECASE)
+
+
+def parse_github(url):
+    """'owner/repo' when a remote URL points at github.com (https / ssh / git@ / alias hosts), else None."""
+    m = GITHUB_REMOTE.match((url or "").strip())
+    return f"{m.group(1)}/{m.group(2)}" if m else None
+
+
+def git_remote(root):
+    out = run_git(root, "config", "--get", "remote.origin.url")
+    return out.strip() if out else None
+
+
 def git_info(root, now, cache):
     """Branch + status for a git root, cached briefly (git status can be slow on /mnt/d)."""
     hit = cache.get(root)
@@ -500,11 +520,12 @@ def git_info(root, now, cache):
         return hit
     status = run_git(root, "status", "--porcelain=v2", "--branch", "-uno")
     if status is None:
-        fail = {"t": now, "branch": read_git_head(root), "changed": None, "ahead": 0, "behind": 0}
+        fail = {"t": now, "branch": read_git_head(root), "changed": None, "ahead": 0, "behind": 0,
+                "remote": hit.get("remote") if hit else None}
         if hit and hit.get("changed") is not None:
             fail.update(changed=hit["changed"], ahead=hit.get("ahead", 0), behind=hit.get("behind", 0))
         return fail
-    info = {"t": now, "branch": None, "changed": 0, "ahead": 0, "behind": 0}
+    info = {"t": now, "branch": None, "changed": 0, "ahead": 0, "behind": 0, "remote": git_remote(root)}
     oid = None
     for line in status.splitlines():
         if line.startswith("# branch.head "):
@@ -527,12 +548,18 @@ def render_row(root, info):
     shown = folder if len(folder) <= 34 else folder[:33] + "…"
     parts = [f"{FOLDER_COLOR}📁 {shown}{RESET}"]
     if os.path.exists(os.path.join(root, ".git")):
+        gh = parse_github(info.get("remote"))
+        if gh:
+            parts.append(f"{GITHUB_COLOR}🐙 GitHub:{gh}{RESET}")
         branch = info.get("branch")
         if branch:
             parts.append(f"{BRANCH_COLOR}🌿 Branch:{branch}{RESET}")
             m = re.search(r"(?:ticket|rm|issue)[/_-]?(\d+)", branch, re.IGNORECASE)
+            if not m and gh:  # GitHub style: 123-fix-bug, feature/123-x, gh-45
+                m = GITHUB_BRANCH_NUM.search(branch)
             if m:
-                parts.append(f"{TICKET_COLOR}🎫 Ticket:#{m.group(1)}{RESET}")
+                label = "Issue" if gh else "Ticket"
+                parts.append(f"{TICKET_COLOR}🎫 {label}:#{m.group(1)}{RESET}")
         changed = info.get("changed")
         if changed:
             parts.append(f"{DIRTY_COLOR}✏️ Changes:{changed}{RESET}")
