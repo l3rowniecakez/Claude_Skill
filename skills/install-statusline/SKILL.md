@@ -32,7 +32,11 @@ python3 "$SKILL_DIR/scripts/install.py"
 ```
 
 `$SKILL_DIR` = โฟลเดอร์ของ skill นี้ในเครื่องนั้น (เช่น `~/.claude/skills/install-statusline`)
-บน Windows ใช้ `python` แทน `python3` ปล่อย output ไหลออกมาตามธรรมชาติ (มี progress bar แบบ text)
+บน Windows ใช้ `python` (หรือ `py`) แทน `python3` — ตัวติดตั้งจะเขียน `statusLine` ให้เรียก python ตัวเดียวกับที่ใช้รัน
+ติดตั้ง (path เต็ม) จึงไม่ขึ้นกับ PATH ปล่อย output ไหลออกมาตามธรรมชาติ (มี progress bar แบบ text)
+
+**รองรับ OS**: Linux / WSL, macOS (python3 ≥ 3.7 — ตัวที่มากับ Xcode CLT ใช้ได้), Windows native
+(Python ≥ 3.7 + Git for Windows; path แบบ `C:\x`, `C:/x`, `/c/x` ของ Git Bash ใช้ได้หมด)
 
 ## Step 2 — จัดการตาม exit code
 
@@ -54,8 +58,9 @@ python3 "$SKILL_DIR/scripts/install.py"
 
 - บรรทัดบน: model, effort, cost, context, ระยะเวลา session
 - แถว 📁 ต่อ repo: ชื่อโฟลเดอร์ | 🌿 branch | 🎫 ticket (จากชื่อ branch `ticket/N`) | ✏️ จำนวนไฟล์ที่แก้ /
-  ✅ Clean | ⬆️⬇️ ahead/behind — แสดงเฉพาะ git repo ที่ session นี้แตะ (อ่าน/แก้ไฟล์ หรือ
-  คำสั่ง Bash ที่อ้าง path ใน repo) หรือ cwd ปัจจุบัน; สูงสุด 5 แถว
+  ✅ Clean | ⬆️⬇️ ahead/behind — แสดงเฉพาะ git repo ที่ session นี้แก้ไฟล์ (Edit/Write/NotebookEdit)
+  หรือรันคำสั่ง Bash ที่ไม่ใช่แค่อ่าน (เช่น `git commit`, `sed -i`) โดยอ้าง path ใน repo, รวมถึง cwd ปัจจุบัน;
+  สูงสุด 5 แถว (คำสั่งที่อ่านอย่างเดียว เช่น `cat`/`git status` และ Read ไม่นับ)
 - บรรทัดล่าง: rate limit 5 ชั่วโมง / 7 วัน (ถ้า Claude Code ส่งข้อมูลมา)
 
 ## หมายเหตุสำหรับคนดูแล skill

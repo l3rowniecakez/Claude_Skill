@@ -133,10 +133,52 @@ def progress_bar(pct, width=BAR_WIDTH):
     return f"{color}{bar}{RESET}"
 
 
-HOME = os.path.expanduser("~")
+IS_WIN = os.name == "nt"
+IS_MAC = sys.platform == "darwin"
+MSYS_PATH = re.compile(r"^/([A-Za-z])(?=/|$)")  # Git Bash style /c/Users/... on Windows
+
+
+def to_native(p):
+    """Normalize a path for this OS: Git Bash /c/x -> C:\\x, upper-case drive letter on Windows."""
+    if not p:
+        return p
+    if IS_WIN:
+        p = MSYS_PATH.sub(lambda m: m.group(1).upper() + ":", p)
+        if len(p) >= 2 and p[1] == ":":
+            p = p[0].upper() + p[1:]
+        if len(p) == 2 and p[1] == ":":
+            p += os.sep
+    return os.path.normpath(p)
+
+
+def norm_key(p):
+    """Comparison form: case-insensitive on Windows, unchanged elsewhere."""
+    return os.path.normcase(p)
+
+
+def same_path(a, b):
+    return norm_key(a) == norm_key(b)
+
+
+def is_fs_root(p):
+    return os.path.dirname(p) == p
+
+
+HOME = to_native(os.path.expanduser("~"))
 STATE_DIR = os.path.join(HOME, ".claude", "state", "statusline")
-EXCLUDE_PREFIXES = ("/tmp/", "/proc/", "/dev/", os.path.join(HOME, ".claude") + os.sep,
-                    os.path.join(HOME, "ψ") + os.sep)
+
+
+def _exclude_prefixes():
+    pre = ["/tmp/", "/proc/", "/dev/", "/private/tmp/", "/private/var/folders/",
+           os.path.join(HOME, ".claude") + os.sep, os.path.join(HOME, "ψ") + os.sep]
+    for var in ("TMPDIR", "TEMP", "TMP"):  # macOS /var/folders/..., Windows %TEMP%
+        v = os.environ.get(var)
+        if v and os.path.isabs(v) and not is_fs_root(to_native(v)):
+            pre.append(to_native(v).rstrip("\\/") + os.sep)
+    return tuple(dict.fromkeys(norm_key(p) for p in pre))
+
+
+EXCLUDE_PREFIXES = _exclude_prefixes()
 PROJECT_MARKERS = (
     "package.json", "composer.json", "pom.xml", "pyproject.toml",
     "requirements.txt", "go.mod", "Cargo.toml",
@@ -144,16 +186,36 @@ PROJECT_MARKERS = (
 PROJECT_MARKER_EXTS = (".dpr", ".dproj", ".sln", ".csproj")
 MAX_ROWS = 5
 GIT_TTL = 10
-CACHE_VERSION = 4
+CACHE_VERSION = 6
 MAX_NAMED_CLONES = 2
-ABS_PATH = re.compile(r"/(?:mnt|home|opt|srv|var|workspace)/[^'\"`;|&<>\n\\]+")
+if IS_WIN:
+    # C:\x, C:/x and Git Bash /c/x
+    ABS_PATH = re.compile(r"(?<![\w/])(?:[A-Za-z]:[\\/]|/[A-Za-z]/)[^'\"`;|&<>\n*?]+")
+else:
+    # Linux/WSL roots + macOS /Users and /Volumes
+    ABS_PATH = re.compile(r"/(?:mnt|home|opt|srv|var|workspace|Users|Volumes)/[^'\"`;|&<>\n\\]+")
+READONLY_CMDS = {
+    "cat", "ls", "grep", "egrep", "rg", "head", "tail", "find", "wc", "echo", "printf", "stat",
+    "file", "diff", "cmp", "less", "more", "tree", "du", "df", "pwd", "which", "test", "[",
+    "sort", "uniq", "cut", "tr", "awk", "jq", "basename", "dirname", "realpath", "readlink",
+    "curl", "sleep", "true", "date", "env", "xxd", "od", "strings", "md5sum", "sha256sum",
+}
+READONLY_GIT = {
+    "status", "log", "diff", "show", "branch", "rev-parse", "rev-list", "remote", "ls-files",
+    "ls-remote", "ls-tree", "describe", "blame", "shortlog", "cat-file", "config", "tag",
+    "fetch", "grep", "reflog", "whatchanged", "name-rev", "merge-base", "for-each-ref",
+}
+WRITE_REDIRECT = re.compile(r"(?<![0-9&>])>{1,2}(?!&)\s*(?!/dev/null)")
 
 
 def run_git(cwd, *args):
     try:
         out = subprocess.run(
             ["git", "-C", cwd, *args],
-            capture_output=True, text=True, timeout=1.5,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=2.5 if IS_WIN else 1.5,
+            # no console window flashing for every git call on Windows
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if IS_WIN else 0,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -163,9 +225,9 @@ def run_git(cwd, *args):
 
 
 def short_path(path):
-    if path == HOME:
+    if same_path(path, HOME):
         return "~"
-    if path.startswith(HOME + os.sep):
+    if norm_key(path).startswith(norm_key(HOME + os.sep)):
         return "~" + path[len(HOME):]
     return path
 
@@ -194,12 +256,13 @@ def find_project_root(path):
     d = path if os.path.isdir(path) else os.path.dirname(path)
     marker_hit = None
     cur = d
-    while cur and cur != "/" and cur != HOME:
+    # stop at the filesystem root ("/", "C:\\") or HOME; the dirname of a root is itself
+    while cur and not is_fs_root(cur) and not same_path(cur, HOME):
         if os.path.exists(os.path.join(cur, ".git")):
             return cur
         if os.path.isdir(os.path.join(cur, ".svn")):
             top = cur
-            while os.path.isdir(os.path.join(os.path.dirname(top), ".svn")):
+            while not is_fs_root(top) and os.path.isdir(os.path.join(os.path.dirname(top), ".svn")):
                 top = os.path.dirname(top)
             return top
         if marker_hit is None:
@@ -214,32 +277,52 @@ def find_project_root(path):
 
 
 def excluded(path):
-    return path.startswith(EXCLUDE_PREFIXES)
+    return norm_key(path).startswith(EXCLUDE_PREFIXES)
 
 
 def resolve_path(cand):
     """Longest existing prefix of a (possibly space-containing) absolute path candidate."""
-    cand = cand.strip().rstrip("/.,:")
+    cand = cand.strip().rstrip("/\\.,:" if not IS_WIN else "/\\.,")
     while len(cand) > 1:
-        if os.path.exists(cand):
-            return cand
-        cut = max(cand.rfind("/"), cand.rfind(" "))
+        native = to_native(cand)
+        if os.path.isabs(native) and not is_fs_root(native) and os.path.exists(native):
+            return native
+        cut = max(cand.rfind("/"), cand.rfind(" "), cand.rfind("\\") if IS_WIN else -1)
         if cut <= 0:
             return None
         cand = cand[:cut].rstrip()
     return None
 
 
+def plain_folder_ok(d):
+    """A non-project folder deep enough to count as a program folder (e.g. D:\\WORK\\BOT)."""
+    if is_fs_root(d) or excluded(d + os.sep):
+        return False
+    if same_path(d, HOME) or norm_key(HOME + os.sep).startswith(norm_key(d + os.sep)):
+        return False  # HOME itself or one of its ancestors
+    if IS_WIN:
+        drive, rest = os.path.splitdrive(d)
+        return bool(drive) and len([p for p in re.split(r"[\\/]", rest) if p]) >= 2
+    if d.startswith("/mnt/"):  # WSL /mnt/<drive>/<a>/<b>
+        return d.count("/") >= 4
+    if IS_MAC:
+        if d.startswith("/Volumes/"):  # /Volumes/<disk>/<a>/<b>
+            return d.count("/") >= 4
+        if d.startswith(HOME + os.sep):  # ~/<a>/<b>
+            return d[len(HOME):].count("/") >= 2
+    return False
+
+
 def resolve_root(fp, allow_plain=False):
-    """Program folder for a touched path: VCS/project root, else (edits only) a plain /mnt folder."""
+    """Program folder for a touched path: VCS/project root, else (edits only) a plain work folder."""
     if not fp or excluded(fp):
         return None
     root = find_project_root(fp)
     if root:
         return root
-    if allow_plain and fp.startswith("/mnt/"):
+    if allow_plain:
         d = fp if os.path.isdir(fp) else os.path.dirname(fp)
-        if d.count("/") >= 4:
+        if plain_folder_ok(d):
             return d
     return None
 
@@ -253,17 +336,42 @@ def child_repos(root):
     return [n for n in names if os.path.exists(os.path.join(root, n, ".git"))]
 
 
+def segment_is_readonly(seg):
+    if WRITE_REDIRECT.search(seg):
+        return False
+    toks = seg.split()
+    while toks and re.match(r"^[A-Za-z_]\w*=", toks[0]):
+        toks.pop(0)
+    if toks and toks[0] == "sudo":
+        toks.pop(0)
+    if not toks:
+        return True
+    if toks[0] == "cd":
+        return True
+    if toks[0] == "git":
+        i = 1
+        while i < len(toks) and toks[i].startswith("-"):
+            i += 2 if toks[i] in ("-C", "-c") else 1
+        return i < len(toks) and toks[i] in READONLY_GIT
+    return os.path.basename(toks[0]) in READONLY_CMDS
+
+
+def is_readonly_cmd(cmd):
+    """True when every part of a shell command only reads (cat/grep/git status/...)."""
+    return all(segment_is_readonly(seg) for seg in re.split(r"&&|\|\||;|\||\n", cmd))
+
+
 def tool_events(block):
     """Yield ('path', p) for edited files and ('cmd', text) for mutating shell commands."""
     name = block.get("name")
     inp = block.get("input") or {}
-    if name in ("Edit", "Write", "NotebookEdit", "MultiEdit", "Read"):
+    if name in ("Edit", "Write", "NotebookEdit", "MultiEdit"):
         fp = inp.get("file_path") or inp.get("notebook_path")
         if isinstance(fp, str):
             yield "path", fp
     elif name == "Bash":
         cmd = inp.get("command") or ""
-        if ABS_PATH.search(cmd):
+        if ABS_PATH.search(cmd) and not is_readonly_cmd(cmd):
             yield "cmd", cmd
 
 
@@ -332,17 +440,16 @@ def scan_transcript(transcript_path, session_id):
         cands = [val] if kind == "path" else ABS_PATH.findall(val)
         found = set()
         for c in cands:
-            fp = c if kind == "path" else resolve_path(c)
-            if not fp or not fp.startswith("/"):
+            fp = to_native(c) if kind == "path" else resolve_path(c)
+            if not fp or not os.path.isabs(fp):
                 continue
-            fp = os.path.normpath(fp)
             key = (fp, kind == "path")
             if key not in path_cache:
                 path_cache[key] = resolve_root(fp, kind == "path") if os.path.exists(fp) else None
             root = path_cache[key]
             if root:
                 found.add(root)
-            elif kind == "cmd" and fp.startswith("/mnt/") and fp.count("/") >= 4 and os.path.isdir(fp):
+            elif kind == "cmd" and os.path.isdir(fp) and plain_folder_ok(fp):
                 register_children(fp)  # a plain folder holding clones, e.g. .../JIRA/BOT
         if kind == "cmd" and len(found) > MAX_NAMED_CLONES:
             continue  # a command sweeping many repos is a survey, not work
@@ -449,11 +556,14 @@ def location_rows(data):
     activity = {r: e[1] for r, e in roots.items() if is_git(r)}
 
     for d in [cwd] + list(ws.get("added_dirs") or []):
-        root = find_project_root(d) if os.path.isdir(d) else None
+        d = to_native(d) if isinstance(d, str) and d else None
+        root = find_project_root(d) if d and os.path.isdir(d) else None
         if root and is_git(root) and not excluded(root + os.sep):
             activity.setdefault(root, 0)
 
-    ordered = sorted(activity, key=lambda r: activity[r], reverse=True)
+    hidden = set((load_json(os.path.join(STATE_DIR, f"hidden-{data.get('session_id') or 'unknown'}.json")) or {}).get("roots", []))
+    ordered = sorted((r for r in activity if r not in hidden), key=lambda r: activity[r], reverse=True)
+    save_json(os.path.join(STATE_DIR, f"shown-{data.get('session_id') or 'unknown'}.json"), {"roots": ordered})
     if not ordered:
         return []
 
@@ -473,8 +583,13 @@ def location_rows(data):
 
 
 def main():
+    # Windows pipes default to the ANSI code page (cp874/cp1252), which cannot encode emoji
     try:
-        data = json.load(sys.stdin)
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+    try:
+        data = json.loads(sys.stdin.buffer.read())  # bytes: json detects UTF-8 itself
     except Exception:
         print("")
         return

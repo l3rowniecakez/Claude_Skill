@@ -82,8 +82,13 @@ def write_atomic(path, data):
 
 
 def wanted_command():
-    # Windows has no shebang support, so name the interpreter explicitly.
-    return f'python "{DEST}"' if IS_WINDOWS else "~/.claude/statusline.py"
+    # Windows has no shebang support, so name the interpreter explicitly: the same
+    # python that runs this installer ("python" may be missing or the Store stub).
+    # Forward slashes work in both cmd.exe and Git Bash.
+    if IS_WINDOWS:
+        exe = (sys.executable or "python").replace("\\", "/")
+        return f'"{exe}" "{DEST.replace(chr(92), "/")}"'
+    return "~/.claude/statusline.py"
 
 
 def is_ours(cmd):
@@ -118,7 +123,7 @@ def smoke_test():
     try:
         out = subprocess.run(
             [sys.executable, DEST], input=json.dumps(SAMPLE_INPUT),
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
         )
     except (OSError, subprocess.SubprocessError) as e:
         return False, str(e)
@@ -128,6 +133,11 @@ def smoke_test():
 
 
 def main():
+    try:  # Thai/emoji output through a Windows pipe (default code page can't encode them)
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default=SOURCE_URL, help="URL หรือ path ไฟล์ statusline.py (default: GitHub)")
     ap.add_argument("--force-settings", action="store_true",
