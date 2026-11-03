@@ -36,6 +36,7 @@ CLEAN_COLOR = "\033[38;5;120m"
 SYNC_COLOR = "\033[38;5;117m"
 NOGIT_COLOR = "\033[38;5;245m"
 GITHUB_COLOR = "\033[38;5;252m"
+EMAIL_COLOR = "\033[38;5;110m"
 
 BAR_WIDTH = 15
 BAR_FILLED_CHAR = "●"
@@ -609,6 +610,20 @@ def location_rows(data):
     return rows
 
 
+def login_email():
+    """Email of the logged-in Claude account (oauthAccount in ~/.claude.json), or None."""
+    cfg_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    candidates = []
+    if cfg_dir:
+        candidates.append(os.path.join(cfg_dir, ".claude.json"))
+    candidates += [os.path.join(HOME, ".claude.json"), os.path.join(HOME, ".claude", ".claude.json")]
+    for p in candidates:
+        acct = (load_json(p) or {}).get("oauthAccount")
+        if isinstance(acct, dict) and acct.get("emailAddress"):
+            return acct["emailAddress"]
+    return None
+
+
 def main():
     # Windows pipes default to the ANSI code page (cp874/cp1252), which cannot encode emoji
     try:
@@ -687,6 +702,9 @@ def main():
         weekly_chunk = chunk
 
     lines = [" | ".join(parts)]
+    email = login_email()
+    if email:
+        lines.append(f"🔐 Login : {EMAIL_COLOR}{email}{RESET}")
     lines.extend(location_rows(data))
     if current_chunk:
         lines.append(current_chunk)
