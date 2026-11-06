@@ -188,14 +188,16 @@ PROJECT_MARKERS = (
 PROJECT_MARKER_EXTS = (".dpr", ".dproj", ".sln", ".csproj")
 MAX_ROWS = 5
 GIT_TTL = 10
-CACHE_VERSION = 6
+CACHE_VERSION = 7
 MAX_NAMED_CLONES = 2
 if IS_WIN:
     # C:\x, C:/x and Git Bash /c/x
     ABS_PATH = re.compile(r"(?<![\w/])(?:[A-Za-z]:[\\/]|/[A-Za-z]/)[^'\"`;|&<>\n*?]+")
 else:
-    # Linux/WSL roots + macOS /Users and /Volumes
-    ABS_PATH = re.compile(r"/(?:mnt|home|opt|srv|var|workspace|Users|Volumes)/[^'\"`;|&<>\n\\]+")
+    # macOS / Linux / WSL: any absolute path with >=2 segments (e.g. /Applications/AI/app, /mnt/d/x, /opt/x).
+    # The look-behind skips URLs ("https://host/x") and relative fragments ("a/b/c", "./x"); candidates are
+    # still validated by resolve_path() (must exist) and excluded() (/tmp, /dev, ...). #ai-work
+    ABS_PATH = re.compile(r"(?<![\w/:.~$-])/[A-Za-z0-9_.@+~-][^/\s'\"`;|&<>\\]*/[^'\"`;|&<>\n\\]+")
 READONLY_CMDS = {
     "cat", "ls", "grep", "egrep", "rg", "head", "tail", "find", "wc", "echo", "printf", "stat",
     "file", "diff", "cmp", "less", "more", "tree", "du", "df", "pwd", "which", "test", "[",
