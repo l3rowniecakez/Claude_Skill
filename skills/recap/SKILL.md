@@ -47,6 +47,15 @@ Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกั
    - `legacy` = handoff รุ่นเก่าไม่มี frontmatter (stream เดาจาก keyword) → ใส่ ⚠️ unverified ถ้า verify ไม่ได้
    - Redmine = Closed/Resolved แต่ handoff ยัง open → ขึ้นเตือน "น่าจะปิดได้" + เสนอ `handoffs.py close <key>` (**ถามก่อน** ไม่ปิดเอง)
    - branch ไม่ตรงกับ handoff / repo path หาย → เตือน
+3.5 **แสดงตาราง Session ID ต่อท้ายเสมอ** (ผู้ใช้สั่ง 2026-11-09, ต้องทำทุกครั้งที่เรียก /recap แบบไม่มี argument):
+   - ตารางเดียวรวมทุก stream, ชื่องานย่อให้สั้น (ไม่เกิน ~30 ตัวอักษร) ไม่ให้ตารางกว้างเกินจอ
+   - คอลัมน์ตายตัว: `| RM | ชื่องาน | ชื่อ session | Session ID | ใช้ session ล่าสุด |`
+   - Session ID = ค่า `session:` ใน frontmatter ของ handoff ล่าสุดของ key นั้น (`grep -m1 '^session:' <ไฟล์>`) ใส่ใน backtick เต็ม 36 ตัว; ชื่อ session ดูจาก `session:` บรรทัดใน `handoffs.py list`, ไม่มีใส่ `-`
+   - "ใช้ session ล่าสุด" = วันที่เวลา (เวลาไทย, รูปแบบ `YYYY-MM-DD HH:MM`) จาก mtime ของ `~/.claude/projects/*/<uuid>.jsonl` (`ls */<uuid>.jsonl`, `TZ=Asia/Bangkok date -d @$(stat -c %Y ...)`)
+     - ถ้าไม่พบไฟล์ transcript (เครื่องอื่น/ถูกลบ) → fallback เป็นเวลาของไฟล์ handoff ล่าสุดของ session นั้น และ **บอกผู้ใช้ชัดๆ ว่าเป็นเวลา handoff ไม่ใช่เวลาใช้งานจริง**
+   - key หลายงานใช้ session เดียวกัน (uuid ซ้ำ) → ใส่ uuid ซ้ำในแต่ละแถว + หมายเหตุว่า resume แล้ว context จะรวมหลายงาน
+   - ห้ามใช้ `find /` ค้นหา transcript (ช้า/timeout) ให้ glob เฉพาะ `~/.claude/projects/*/`
+   - บอกผู้ใช้ว่าเปิด session เดิมได้ด้วย `claude --resume <uuid>`
 4. ปิดท้ายด้วยคำถาม (AskUserQuestion ถ้างาน ≤ 4, ไม่งั้นให้พิมพ์เลข RM): "จะทำงานไหนต่อ?"
    แล้วทำขั้นตอน B กับงานที่เลือก
 
