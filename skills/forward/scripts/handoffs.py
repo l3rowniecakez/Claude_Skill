@@ -11,6 +11,7 @@ Usage:
   handoffs.py close KEY [--status closed|waiting|open]
   handoffs.py supersede KEY FILE                    mark older handoffs of KEY superseded
   handoffs.py verify KEY                            live check: git repo/branch + Redmine status
+  handoffs.py session NAME [--exclude UUID]            Session ID เต็ม + ชื่อ + เวลาใช้ล่าสุด + cwd ของงาน (สำหรับ /recap <ชื่องาน>)
   handoffs.py dir                                   print vault dir
 """
 import json, os, re, subprocess, sys, time
@@ -213,6 +214,121 @@ def cmd_verify(args):
             print(f"RM #{rm}: ⚠️ ดึงสถานะไม่ได้")
 
 
+UUID_RX = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def transcript_of(uuid):
+    """path ของ transcript jsonl ของ session (glob เฉพาะ ~/.claude/projects/*/ ห้าม find /)"""
+    if not UUID_RX.match(uuid or ""):
+        return None
+    hits = list(Path.home().glob(f".claude/projects/*/{uuid}.jsonl"))
+    return hits[0] if hits else None
+
+
+def transcript_cwd(path):
+    try:
+        for line in path.open(encoding="utf-8", errors="replace"):
+            m = re.search(r'"cwd":"([^"]*)"', line)
+            if m:
+                return m.group(1)
+    except OSError:
+        pass
+    return ""
+
+
+def bkk(ts):
+    return time.strftime("%Y-%m-%d %H:%M", time.gmtime(ts + 7 * 3600))
+
+
+def match_for_session(query):
+    """หา handoff ที่ตรงกับ 'ชื่องาน' ที่ผู้ใช้พิมพ์: key / เลข RM / ชื่อไฟล์ / ชื่อ session / title (ทุกคำต้องอยู่ใน title)"""
+    hist = find_key(query)
+    if hist:
+        return hist
+    words = [w for w in re.split(r"\s+", query.lower().strip()) if w]
+    return [d for d in all_handoffs()
+            if words and all(w in (d["title"] + " " + d.get("key", "") + " " + d.get("session_name", "")).lower() for w in words)]
+
+
+def scan_transcripts(query, limit=5, exclude=()):
+    """fallback เมื่อ handoff ไม่มี session id: grep ข้อความในฟีลด์ transcript (fixed-string, เฉพาะ ~/.claude/projects/*/)"""
+    needles = [query]
+    if query.lstrip("#").isdigit():
+        needles = [f"#{query.lstrip('#')}", f"RM {query.lstrip('#')}", f"rm{query.lstrip('#')}"]
+    files = list(Path.home().glob(".claude/projects/*/*.jsonl"))
+    hits = []
+    for f in files:
+        if f.stem in exclude:
+            continue
+        try:
+            blob = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        n = sum(blob.count(x) for x in needles)
+        if n >= 3:
+            hits.append((n, f))
+    hits.sort(key=lambda t: (t[0], t[1].stat().st_mtime), reverse=True)  # เรียงตามจำนวนที่เจอ (session ที่ทำงานนั้นจริงจะเจอเยอะสุด)
+    return hits[:limit]
+
+
+def cmd_session(args):
+    """/recap <ชื่องาน> -> ปริ้น Session ID เต็ม + ชื่อ + เวลาใช้ล่าสุด + cwd + คำสั่ง resume ของงานนั้น"""
+    if not args:
+        print("usage: handoffs.py session <ชื่องาน|RM|key|ชื่อ session>"); return
+    exclude = set()
+    while "--exclude" in args:  # session ปัจจุบัน (กันเจอตัวเองใน fallback)
+        i = args.index("--exclude")
+        exclude.add(args[i + 1]); del args[i:i + 2]
+    query = " ".join(args)
+    hist = match_for_session(query)
+    if not hist:
+        print(f"ไม่พบ handoff ที่ตรงกับ '{query}' — ลองสแกน transcript (เดา):")
+        for n, f in scan_transcripts(query, exclude=exclude):
+            print(f"GUESS | uuid={f.stem} | hits={n} | last_used={bkk(f.stat().st_mtime)} | cwd={transcript_cwd(f) or '?'} | name={session_names().get(f.stem, '-')}")
+        return
+    keys = []
+    for d in hist:
+        if d["key"] not in keys:
+            keys.append(d["key"])
+    print(f"MATCHED_KEYS={len(keys)}")
+    for k in keys:
+        chain = [d for d in hist if d["key"] == k]  # newest first
+        latest = chain[0]
+        print(f"\n== key={k} | RM={latest.get('rm') or '-'} | status={latest['status']} | title={latest['title'][:90]}")
+        sessions, seen = [], set()
+        for d in chain:
+            s = d.get("session", "")
+            if s and s not in seen:
+                seen.add(s); sessions.append(d)
+        if not sessions:
+            print("  ⚠️ NO_SESSION_ID: handoff ของ key นี้ไม่ได้บันทึก session id ไว้ (handoff เก่า/legacy)")
+            for n, f in scan_transcripts(latest.get("rm") or k, exclude=exclude):
+                print(f"  GUESS | uuid={f.stem} | hits={n} | last_used={bkk(f.stat().st_mtime)} | cwd={transcript_cwd(f) or '?'} | name={session_names().get(f.stem, '-')}")
+            continue
+        for i, d in enumerate(sessions):
+            u = d["session"]
+            tp = transcript_of(u)
+            if tp:
+                used, src, cwd = bkk(tp.stat().st_mtime), "transcript mtime", transcript_cwd(tp)
+            else:
+                used, src, cwd = bkk(d["mtime"]), "เวลา handoff (ไม่ใช่เวลาใช้งานจริง — ไม่พบ transcript ในเครื่องนี้)", d.get("cwd", "")
+            tag = "LATEST" if i == 0 else "EARLIER"
+            print(f"  [{tag}] session_id={u}")
+            print(f"    name={d.get('session_name') or '-'} | last_used={used} ({src}) | cwd={cwd or '?'}")
+            print(f"    resume: /resume {u}    (หรือ cd '{cwd}' && claude --resume {u})" if cwd else f"    resume: /resume {u}")
+            print(f"    handoff: {d['file']}")
+            if not tp:
+                print("    ⚠️ TRANSCRIPT_MISSING: resume อาจไม่ได้บนเครื่องนี้")
+    dup = {}
+    for k in keys:
+        s = next((d.get("session") for d in hist if d["key"] == k and d.get("session")), "")
+        if s:
+            dup.setdefault(s, []).append(k)
+    for s, ks in dup.items():
+        if len(ks) > 1:
+            print(f"\nNOTE: session {s} ใช้ร่วมกันหลาย key ({', '.join(ks)}) — resume แล้ว context จะรวมหลายงาน")
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__); return
@@ -246,6 +362,8 @@ def main():
         for d in latest_per_key(all_handoffs()):
             if d.get("session_name"):
                 print(f"{d['session_name']}\t{d['key']}\t{d.get('session', '')}")
+    elif cmd == "session":
+        cmd_session(args)
     elif cmd == "verify":
         cmd_verify(args)
     else:

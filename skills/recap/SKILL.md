@@ -1,7 +1,7 @@
 ---
 name: recap
-description: 'กลับมาทำงานต่อจากที่ /forward บันทึกไว้ — แสดงงานค้างทุกสายงาน (grouplife ประกันกลุ่ม / cde / cam / bot) จาก ~/ψ/inbox/handoff, verify สถานะจริง (git branch, Redmine status) แล้วให้เลือกงานที่จะทำต่อ; /recap <RM> โหลดงานนั้นเต็มๆ. Also session orientation (--now, --quick). Use when starting a session, "recap", "ทำอะไรค้างไว้", "งานค้าง", "where are we", "status". Do NOT trigger for "standup" (use /standup) or "dig"/"past sessions" (use /dig).'
-argument-hint: "[RM|key | --stream S | --all | --now | --quick]"
+description: 'กลับมาทำงานต่อจากที่ /forward บันทึกไว้ — แสดงงานค้างทุกสายงาน (grouplife ประกันกลุ่ม / cde / cam / bot) จาก ~/ψ/inbox/handoff, verify สถานะจริง (git branch, Redmine status) แล้วให้เลือกงานที่จะทำต่อ; /recap <ชื่องาน> หา Session ID เต็มของงานนั้นให้ (ผู้ใช้ /resume เอง; --load = โหลดงานในแชทนี้ด้วย). Also session orientation (--now, --quick). Use when starting a session, "recap", "ทำอะไรค้างไว้", "งานค้าง", "where are we", "status". Do NOT trigger for "standup" (use /standup) or "dig"/"past sessions" (use /dig).'
+argument-hint: "[ชื่องาน(RM|key|ชื่อ session) [--load] | --stream S | --all | --now | --quick]"
 trigger: /recap
 ---
 
@@ -14,11 +14,12 @@ trigger: /recap
 
 ```
 /recap                 # งานค้างทุกสายงาน → verify → ถามว่าจะทำอันไหนต่อ
-/recap 12345          # โหลด handoff ล่าสุดของ RM #12345 เต็มๆ แล้วเริ่มทำต่อ
+/recap 12345          # หา Session ID เต็มของงานนั้นให้ (ผู้ใช้ /resume <id> เอง) — ชื่องานเป็น RM/key/ชื่อ session/คำใน title
+/recap 12345 --load   # + โหลด handoff เต็มๆ ในแชทนี้แล้วเริ่มทำต่อ (ขั้น B2)
 /recap --stream cde    # เฉพาะสายงาน (grouplife | cde | cam | bot | other)
 /recap --all           # รวมงานที่ closed/superseded/legacy เก่า
 /recap --rich          # โหมด Rich เดิม (recap-rich.ts, ψ ของ repo)
-/recap webbot          # ชื่อ session ที่ตั้งด้วย /rename ก็ได้ (หาจาก custom-title ผ่าน handoffs.py)
+/recap webbot          # ชื่อ session ที่ตั้งด้วย /rename ก็ได้ (หาจาก custom-title ผ่าน handoffs.py) → ได้ Session ID กลับมา
 ```
 
 Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกับ cwd) — script กลาง:
@@ -55,13 +56,51 @@ Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกั
      - ถ้าไม่พบไฟล์ transcript (เครื่องอื่น/ถูกลบ) → fallback เป็นเวลาของไฟล์ handoff ล่าสุดของ session นั้น และ **บอกผู้ใช้ชัดๆ ว่าเป็นเวลา handoff ไม่ใช่เวลาใช้งานจริง**
    - key หลายงานใช้ session เดียวกัน (uuid ซ้ำ) → ใส่ uuid ซ้ำในแต่ละแถว + หมายเหตุว่า resume แล้ว context จะรวมหลายงาน
    - ห้ามใช้ `find /` ค้นหา transcript (ช้า/timeout) ให้ glob เฉพาะ `~/.claude/projects/*/`
-   - บอกผู้ใช้ว่าเปิด session เดิมได้ด้วย `claude --resume <uuid>`
+   - บอกผู้ใช้ว่าเปิด session เดิมได้ด้วย `/resume <uuid>` (หรือ `claude --resume <uuid>` จาก cwd เดิม)
 4. ปิดท้ายด้วยคำถาม (AskUserQuestion ถ้างาน ≤ 4, ไม่งั้นให้พิมพ์เลข RM): "จะทำงานไหนต่อ?"
    แล้วทำขั้นตอน B กับงานที่เลือก
 
-### B. `/recap <RM|key>` — โหลดงานเดียว
+### B. `/recap <ชื่องาน>` — หา Session ID ของงานนั้นให้เสมอ (ผู้ใช้สั่ง 2026-11-17)
 
-> `<RM|key>` ใช้ได้ 3 แบบ: เลข RM, key, หรือ **ชื่อ session** (`find_key` ลำดับ: key → ชื่อไฟล์ → ชื่อ session). ถ้าชื่อ session ตรงหลาย key (เช่น `webbot` → rm12345 + rm23456) ให้แสดงรายการแล้วถามว่าจะเอาอันไหน. ตาราง list แสดง `session: <ชื่อ>` ใต้แต่ละงาน
+> **กฎหลัก**: ทุกครั้งที่ผู้ใช้ระบุชื่องานมากับ /recap → **หา Session ID เต็ม 36 ตัวมาให้เสมอ** แล้ว **ผู้ใช้ `/resume <session-id>` เอง** ใน session ใหม่ที่ต้องการ context เต็ม.
+> ค่า default = **ตอบ Session ID แล้วจบ** ไม่โหลดงาน/ไม่ verify/ไม่ถามต่อ (ผู้ใช้จะไป resume เอง) — โหลดงานเต็มในแชทนี้เฉพาะเมื่อผู้ใช้สั่ง `/recap <ชื่องาน> --load` หรือขอเพิ่มเอง (ขั้นตอน "B2" ด้านล่าง)
+>
+> `<ชื่องาน>` ใช้ได้: เลข RM, key, ชื่อไฟล์, **ชื่อ session** (ที่ตั้งด้วย /rename), หรือคำใน title ของงาน (ทุกคำต้องอยู่ใน title). รวมงานที่ closed/waiting ด้วย (ไม่ต้องใส่ `--all`)
+
+#### B1. ขั้นตอน (1 bash call)
+
+```bash
+H=~/.claude/skills/forward/scripts/handoffs.py
+python3 -I $H session "<ชื่องาน>" --exclude <uuid session ปัจจุบัน>
+```
+(ตัด flag `--load` ออกจาก `<ชื่องาน>` ก่อนส่งให้ script; uuid session ปัจจุบัน = ชื่อโฟลเดอร์ใน path scratchpad `/tmp/claude-*/<project>/<uuid>/scratchpad` — ใส่ `--exclude` กันเจอตัวเองตอน fallback)
+
+output ของ script: `session_id` (เต็ม), `name`, `last_used` (เวลาไทย), `cwd`, `resume:`, `handoff:` ต่อ session — ให้แสดงผู้ใช้ **ตามนี้เสมอ**:
+
+```
+## 🔑 Session ของงาน: <ชื่องาน> (key <key> · RM #<n>)
+
+| ชื่อ session | Session ID | ใช้ล่าสุด | cwd |
+|---|---|---|---|
+| <name หรือ -> | `<uuid เต็ม 36 ตัว>` | YYYY-MM-DD HH:MM | <cwd> |
+
+▶ เปิด session ใหม่ (จาก cwd ด้านบน) แล้วพิมพ์:  `/resume <uuid เต็ม>`
+```
+
+รายละเอียดที่ต้องทำตาม:
+- **uuid ต้องเป็นเต็ม 36 ตัวใน backtick** เพื่อ copy ได้ — ห้ามย่อเป็น 8 ตัว
+- มีหลาย session (`[EARLIER]`) → ใส่เป็นแถวถัดไปและเขียนกำกับว่า `ล่าสุด`/`เก่ากว่า`; ถ้าไม่ชัดว่างานต่อกันข้าม session ให้ยึด `[LATEST]` เป็นหลัก
+- `MATCHED_KEYS` > 1 (เช่น `webbot` ตรงหลาย key) → แสดงทุก key เป็นตารางเดียว (คอลัมน์ key/RM เพิ่ม) แล้วให้ผู้ใช้เลือกเอง ไม่ต้องถามกลับ
+- `NOTE: session ... ใช้ร่วมกันหลาย key` → แจ้งบรรทัดเดียวว่า resume แล้ว context รวมหลายงาน
+- `⚠️ TRANSCRIPT_MISSING` → แจ้งชัดๆ ว่า "เวลาที่แสดงคือเวลา handoff ไม่ใช่เวลาใช้งานจริง และ resume อาจไม่ได้บนเครื่องที่ไม่มี transcript"
+- `NO_SESSION_ID` (handoff เก่าไม่ได้เก็บ uuid) → ผลที่ขึ้น `GUESS` คือ **เดา** จากการสแกน transcript ว่ามีคำว่า RM นั้นกี่ครั้ง: แสดงเป็นตารางแยก หัวข้อ "⚠️ เดา (handoff ไม่ได้บันทึก session id)" พร้อมจำนวน hits + ชื่อ session และห้ามฟันธงว่าเป็น session ของงานนั้น
+- ไม่พบเลย (script ไม่เจอ handoff และ GUESS ว่าง) → บอกตรงๆ ว่าไม่พบ + แสดง `python3 $H sessions` (ชื่อ session ที่มี) ให้ผู้ใช้เลือก — ห้ามแต่ง uuid เอง
+- ห้ามใช้ `find /` ค้น transcript (glob เฉพาะ `~/.claude/projects/*/` ซึ่ง script ทำให้แล้ว)
+- ตอบสั้น: จบที่ตาราง + คำสั่ง `/resume` ไม่ต้องสรุปงาน ไม่ต้องถามว่าจะทำอะไรต่อ
+
+#### B2. `--load` (เฉพาะเมื่อผู้ใช้ขอโหลดงานในแชทนี้ด้วย) — โหลดงานเดียว
+
+แสดงตาราง Session ID (B1) ก่อนเสมอ แล้วทำต่อ:
 
 1. `python3 $H show <key>` → Read ไฟล์ handoff นั้นทั้งไฟล์ (+ `history <key>` ถ้าต้องดูย้อนหลัง)
 2. `python3 $H verify <key>` + ตรวจ pending แต่ละข้อกับของจริงตาม "Verify Before Reporting" ด้านล่าง
@@ -70,7 +109,7 @@ Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกั
 4. แสดง:
    ```
    ## ▶ ทำต่อ: RM #12345 — <title>  (stream: grouplife)
-   📡 Session เดิม: <uuid8> — `claude --resume <uuid>` ถ้าต้องการ context เต็ม
+   📡 Session เดิม: `<uuid เต็ม 36 ตัว>` — `/resume <uuid>` ถ้าต้องการ context เต็ม
    **ทำไปแล้ว**: 2-4 บรรทัด
    **สถานะจริงตอนนี้**: git / Redmine / env
    | Pending | handoff บอก | ของจริง |
@@ -78,7 +117,7 @@ Vault: `$HOME/ψ/inbox/handoff/` (ตายตัว ไม่ขึ้นกั
    ⚠️ กฎของงานนี้: ...
    ```
 5. **หยุดถาม** ก่อนลงมือ — การ /recap ไม่ใช่การอนุมัติให้เขียนโค้ด/commit/deploy
-   (งาน grouplife ต้องได้คำว่า "เริ่ม" ต่อ phase ตามกฎ phase-by-phase approval ถ้ามี)
+   (งาน grouplife ต้องได้คำว่า "เริ่ม" ต่อ phase ตาม feedback_phase_by_phase_approval)
 
 ### เมื่องานจบระหว่าง session
 

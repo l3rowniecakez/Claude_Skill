@@ -23,7 +23,7 @@ argument-hint: "[--close RM|key] [--plan] [--list]"
 ```
 
 Script กลาง (ใช้ร่วมกับ /recap): `python3 ~/.claude/skills/forward/scripts/handoffs.py`
-(`list | show KEY | history KEY | verify KEY | close KEY | supersede KEY FILE | dir`)
+(`list | show KEY | history KEY | verify KEY | session NAME | close KEY | supersede KEY FILE | dir`)
 
 ## Hard Rules
 
@@ -61,7 +61,12 @@ git -C "$REPO" status --short; git -C "$REPO" rev-list --count @{u}..HEAD 2>/dev
 
 ถ้ามี handoff เก่าของ key เดียวกัน: pending เก่าที่ยังไม่เสร็จต้อง **ยกมาไว้ในไฟล์ใหม่** (ไม่ใช่ทิ้ง) แล้วค่อย supersede
 
-Session id: เอาจาก path ของ scratchpad/transcript ของ session ปัจจุบัน (uuid เต็ม) — ใช้ `claude --resume <uuid>` ได้
+**Session id (บังคับ — ผู้ใช้สั่ง 2026-11-17)**: handoff ทุกไฟล์ **ต้องมี `session: <uuid เต็ม 36 ตัว>`** ใน frontmatter เพราะ `/recap <ชื่องาน>` ใช้ค่านี้ตอบ Session ID ให้ผู้ใช้ `/resume` เอง
+- หา uuid จาก path scratchpad ของ session ปัจจุบัน `/tmp/claude-*/<project>/<uuid>/scratchpad` (ชื่อโฟลเดอร์ระดับ uuid) — เอามาเต็ม ไม่ย่อ
+- ยืนยันว่าถูกต้องก่อนเขียน: `ls ~/.claude/projects/*/<uuid>.jsonl` ต้องเจอไฟล์ (ได้ cwd ของ session ด้วย — ใส่ `cwd:` ให้ตรงกับ cwd จริงของ session นี้ ไม่ใช่ cwd ของ repo ที่แก้งาน เพราะ `/resume` ต้องเปิดจาก cwd เดิม: `grep -m1 -o '"cwd":"[^"]*"' <jsonl>`)
+- หา uuid ไม่ได้/ไม่เจอ transcript → **อย่าเดา/อย่าเว้นเงียบ** เขียน `session:` เป็นค่าว่างไม่ได้ ให้บอกผู้ใช้ตอนสรุป Step 7 ว่า "handoff นี้ไม่มี session id" แล้วถามว่าจะใส่เอง
+- session เดียวทำหลาย key → ทุกไฟล์ใช้ uuid เดียวกัน (ถูกต้อง); /recap จะแจ้งผู้ใช้ว่า resume แล้ว context รวมหลายงาน
+- เรียก /forward ซ้ำใน session เดิม/เปลี่ยน session กลางงาน → ไฟล์ใหม่ใส่ uuid ของ session **ล่าสุดที่ทำงานนั้น**; ของเก่ายังอยู่ใน chain (`history`) ให้ /recap โชว์เป็น `EARLIER`
 
 **ชื่อ session**: `handoffs.py` อ่านชื่อที่ผู้ใช้ตั้งด้วย `/rename` จาก transcript (custom-title) เองตามค่า `session:` ใน frontmatter — ไม่ต้องเก็บชื่อลงไฟล์ (ชื่อเปลี่ยนทีหลังก็ตามทัน) และ `/recap <ชื่อ session>` ใช้ชื่อนี้หาไฟล์ได้
 - ถ้า session ปัจจุบันยังไม่มีชื่อ → ตอนจบ /forward เตือนหนึ่งบรรทัดให้พิมพ์ `/rename <key>` (เช่น `/rename rm12345` หรือชื่อสั้นที่จำได้) — skill เปลี่ยนชื่อ session เองไม่ได้
@@ -104,15 +109,15 @@ title: แก้ไขการนำเข้าไฟล์ (OGL_App)
 status: open                 # open | waiting (รอคนอื่น/รอ user test) | closed
 repo: /mnt/d/WORK/JIRA/12345 .../OGL_App   # หลาย repo คั่นด้วย ;
 branch: ticket/44
-session: <uuid เต็ม>
-cwd: /home/<user>
+session: <uuid เต็ม 36 ตัว — บังคับ ดู Step 2>
+cwd: /home/<user>   # cwd ที่ session นี้เริ่ม (สำหรับ /resume)
 created: 2026-09-25 16:17
 next: ถามผลทดสอบ Phase 3 แล้วบันทึก FormEdit.txt   # 1 บรรทัด — /recap โชว์ตรงนี้
 ---
 
 # Handoff: RM #12345 — <หัวข้อ>
 
-📡 Session: <uuid 8 ตัวแรก> | <repo/app> | resume: `claude --resume <uuid>` (จาก cwd ข้างบน)
+📡 Session: <uuid 8 ตัวแรก> | <repo/app> | resume: `/resume <uuid เต็ม>` (หรือ `claude --resume <uuid>` จาก cwd ข้างบน)
 **Date**: YYYY-MM-DD HH:MM → ทำต่อ <วัน ถ้า user บอก>
 
 ## What We Did
@@ -162,9 +167,10 @@ append ลง `~/ψ/outbox/YYYY-MM-DD_pending.md` (สร้างถ้าย�
 |---|---|---|---|
 | grouplife | rm12345 | open | ถามผลทดสอบ Phase 3 |
 ไฟล์: $HOME/ψ/inbox/handoff/...md   (absolute path เสมอ)
+🔑 Session ID: `<uuid เต็ม 36 ตัว>` (cwd: <cwd>) → `/resume <uuid>`   (ทุก key ที่บันทึก — ถ้าหลาย key ใช้ uuid เดียวกันให้บอก)
 ปิดงานที่จบแล้ว: rm12344 → closed
 งานค้างอื่นใน vault: N งาน (ดู /recap)
-▶ เปิด session ใหม่แล้วพิมพ์ /recap  (หรือ /recap 12345 เพื่อโหลดงานนี้ตรงๆ)
+▶ เปิด session ใหม่แล้วพิมพ์ /recap  (หรือ /recap 12345 เพื่อให้หา Session ID ของงานนี้ แล้ว /resume เอง)
 ```
 
 ## --close KEY
